@@ -101,48 +101,55 @@
                     <include>webapp/WEB-INF/web.xml</include>
                 </includes>
             </resource>
+            <resource>
+                <directory>lib</directory>
+                <targetPath>BOOT-INF/lib/</targetPath>
+                <includes>
+                    <include>**/*.jar</include>
+                </includes>
+            </resource>
         </resources>
 
         <plugins>
-            <plugin>
-                <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>4.1</version>
-                <configuration>
-                    <header>LICENSE-HEADER.txt</header>
-                    <properties>
-                        <owner>${project.organization.name}</owner>
-                        <year>${project.inceptionYear}</year>
-                        <currentYear>2022</currentYear>
-                    </properties>
-                    <excludes>
-                        <exclude>**/*.txt</exclude>
-                        <exclude>**/*.md</exclude>
-                        <exclude>**/*.xml</exclude>
-                        <exclude>**/*.properties</exclude>
-                        <exclude>**/*.sql</exclude>
-                        <exclude>**/*.html</exclude>
-                        <exclude>**/*.css</exclude>
-                        <exclude>**/*.js</exclude>
-                        <exclude>**/*.yml</exclude>
-                        <exclude>**/*.yaml</exclude>
-                        <exclude>**/*.PNG</exclude>
-                        <exclude>**/Dockerfile</exclude>
-                        <!-- <exclude>**/*.jsp</exclude> -->
+            <!--            <plugin>-->
+            <!--                <groupId>com.mycila</groupId>-->
+            <!--                <artifactId>license-maven-plugin</artifactId>-->
+            <!--                <version>4.1</version>-->
+            <!--                <configuration>-->
+            <!--                    <header>LICENSE-HEADER.txt</header>-->
+            <!--                    <properties>-->
+            <!--                        <owner>${project.organization.name}</owner>-->
+            <!--                        <year>${project.inceptionYear}</year>-->
+            <!--                        <currentYear>2021</currentYear>-->
+            <!--                    </properties>-->
+            <!--                    <excludes>-->
+            <!--                        <exclude>**/*.txt</exclude>-->
+            <!--                        <exclude>**/*.md</exclude>-->
+            <!--                        <exclude>**/*.xml</exclude>-->
+            <!--                        <exclude>**/*.properties</exclude>-->
+            <!--                        <exclude>**/*.sql</exclude>-->
+            <!--                        <exclude>**/*.html</exclude>-->
+            <!--                        <exclude>**/*.css</exclude>-->
+            <!--                        <exclude>**/*.js</exclude>-->
+            <!--                        <exclude>**/*.yml</exclude>-->
+            <!--                        <exclude>**/*.yaml</exclude>-->
+            <!--                        <exclude>**/*.PNG</exclude>-->
+            <!--                        <exclude>**/Dockerfile</exclude>-->
+            <!--                        &lt;!&ndash; <exclude>**/*.jsp</exclude> &ndash;&gt;-->
 
-                    </excludes>
-                    <mapping>
-                        <java>SLASHSTAR_STYLE</java>
-                    </mapping>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+            <!--                    </excludes>-->
+            <!--                    <mapping>-->
+            <!--                        <java>SLASHSTAR_STYLE</java>-->
+            <!--                    </mapping>-->
+            <!--                </configuration>-->
+            <!--                <executions>-->
+            <!--                    <execution>-->
+            <!--                        <goals>-->
+            <!--                            <goal>check</goal>-->
+            <!--                        </goals>-->
+            <!--                    </execution>-->
+            <!--                </executions>-->
+            <!--            </plugin>-->
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -201,6 +208,22 @@
                 <version>3.1.2</version>
                 <configuration>
                     <configLocation>${basedir}/src/main/resources/checkstyle.xml</configLocation>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includeSystemScope>true</includeSystemScope>
+                    <mainClass>de.rwth.idsg.steve.Application</mainClass>
                 </configuration>
             </plugin>
 
@@ -402,7 +425,8 @@
                                 </forcedType>
                                 <forcedType>
                                     <name>BOOLEAN</name>
-                                    <includeExpression>.*\.OCPP_TAG_ACTIVITY\.(IN_TRANSACTION|BLOCKED)</includeExpression>
+                                    <includeExpression>.*\.OCPP_TAG_ACTIVITY\.(IN_TRANSACTION|BLOCKED)
+                                    </includeExpression>
                                 </forcedType>
                                 <forcedType>
                                     <userType>org.joda.time.DateTime</userType>
@@ -471,11 +495,15 @@
             <groupId>com.github.goekay</groupId>
             <artifactId>CompositeJKS</artifactId>
             <version>2.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/CompositeJKS-2.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.github.RWTH-i5-IDSG</groupId>
             <artifactId>ocpp-jaxb</artifactId>
             <version>0.0.1</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/ocpp-jaxb-0.0.1.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.sun.mail</groupId>
