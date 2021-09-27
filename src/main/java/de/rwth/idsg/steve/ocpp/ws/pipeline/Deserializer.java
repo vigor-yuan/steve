@@ -29,13 +29,7 @@ import de.rwth.idsg.steve.ocpp.ws.ErrorFactory;
 import de.rwth.idsg.steve.ocpp.ws.FutureResponseContextStore;
 import de.rwth.idsg.steve.ocpp.ws.JsonObjectMapper;
 import de.rwth.idsg.steve.ocpp.ws.TypeStore;
-import de.rwth.idsg.steve.ocpp.ws.data.CommunicationContext;
-import de.rwth.idsg.steve.ocpp.ws.data.ErrorCode;
-import de.rwth.idsg.steve.ocpp.ws.data.FutureResponseContext;
-import de.rwth.idsg.steve.ocpp.ws.data.MessageType;
-import de.rwth.idsg.steve.ocpp.ws.data.OcppJsonCall;
-import de.rwth.idsg.steve.ocpp.ws.data.OcppJsonError;
-import de.rwth.idsg.steve.ocpp.ws.data.OcppJsonResult;
+import de.rwth.idsg.steve.ocpp.ws.data.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -116,6 +110,7 @@ public class Deserializer implements Consumer<CommunicationContext> {
         // find action class
         Class<? extends RequestType> clazz = typeStore.findRequestClass(action);
         if (clazz == null) {
+            log.error("找不到action 实现 ， 当前action = {}", action);
             context.setOutgoingMessage(ErrorFactory.actionNotFound(messageId, action));
             return;
         }
