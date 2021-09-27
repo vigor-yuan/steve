@@ -24,6 +24,7 @@ import com.google.common.reflect.ClassPath;
 import de.rwth.idsg.ocpp.jaxb.RequestType;
 import de.rwth.idsg.ocpp.jaxb.ResponseType;
 import de.rwth.idsg.steve.ocpp.ws.data.ActionResponsePair;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.Map;
  * @author Sevket Goekay <sevketgokay@gmail.com>
  * @since 14.05.2018
  */
+@Slf4j
 public abstract class AbstractTypeStore implements TypeStore {
 
     private static final String REQUEST_CLASS_SUFFIX = "Request";
@@ -45,6 +47,8 @@ public abstract class AbstractTypeStore implements TypeStore {
                              String packageForActionResponseMap) {
         populateRequestClassMap(packageForRequestClassMap);
         populateActionResponseMap(packageForActionResponseMap);
+        log.info("初始化 request action 完成  = {}", requestClassMap);
+        log.info("初始化 response action 完成= {}", actionResponseMap);
     }
 
     @Override
@@ -95,7 +99,7 @@ public abstract class AbstractTypeStore implements TypeStore {
         try {
             ImmutableSet<ClassPath.ClassInfo> classInfos =
                     ClassPath.from(Thread.currentThread().getContextClassLoader())
-                             .getTopLevelClasses(packageName);
+                            .getTopLevelClasses(packageName);
 
             Map<String, Class<IMPL>> map = new HashMap<>();
             for (ClassPath.ClassInfo classInfo : classInfos) {

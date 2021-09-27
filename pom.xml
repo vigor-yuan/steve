@@ -469,6 +469,10 @@
             <id>JitPack</id>
             <url>https://jitpack.io</url>
         </repository>
+        <repository>
+            <id>rwth-aachen</id>
+            <url>https://treibhaus.informatik.rwth-aachen.de/nexus/service/rest/repository/browse/maven-public/</url>
+        </repository>
     </repositories>
 
     <dependencyManagement>
@@ -495,15 +499,15 @@
             <groupId>com.github.goekay</groupId>
             <artifactId>CompositeJKS</artifactId>
             <version>2.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/CompositeJKS-2.0.jar</systemPath>
+<!--            <scope>system</scope>-->
+<!--            <systemPath>${project.basedir}/lib/CompositeJKS-2.0.jar</systemPath>-->
         </dependency>
         <dependency>
             <groupId>com.github.RWTH-i5-IDSG</groupId>
             <artifactId>ocpp-jaxb</artifactId>
             <version>0.0.1</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/ocpp-jaxb-0.0.1.jar</systemPath>
+<!--            <scope>system</scope>-->
+<!--            <systemPath>${project.basedir}/lib/ocpp-jaxb-0.0.1.jar</systemPath>-->
         </dependency>
         <dependency>
             <groupId>com.sun.mail</groupId>

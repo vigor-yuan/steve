@@ -26,6 +26,7 @@ import de.rwth.idsg.steve.ocpp.ws.data.SessionContext;
 import de.rwth.idsg.steve.ocpp.ws.pipeline.IncomingPipeline;
 import de.rwth.idsg.steve.repository.OcppServerRepository;
 import de.rwth.idsg.steve.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.socket.BinaryMessage;
@@ -48,6 +49,7 @@ import java.util.function.Consumer;
  * @author Sevket Goekay <sevketgokay@gmail.com>
  * @since 17.03.2015
  */
+@Slf4j
 public abstract class AbstractWebSocketEndpoint extends ConcurrentWebSocketHandler {
 
     @Autowired private ScheduledExecutorService service;
@@ -103,7 +105,7 @@ public abstract class AbstractWebSocketEndpoint extends ConcurrentWebSocketHandl
 
         CommunicationContext context = new CommunicationContext(session, chargeBoxId);
         context.setIncomingString(incomingString);
-
+        log.info("获取消息体 = {}", incomingString);
         pipeline.accept(context);
     }
 
