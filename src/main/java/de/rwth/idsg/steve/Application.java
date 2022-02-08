@@ -64,6 +64,7 @@ public class Application implements ApplicationStarter, AutoCloseable {
             app.start();
             app.join();
         } catch (Exception e) {
+            log.error("启动失败", e);
             if (app != null) {
                 app.stop();
             }
