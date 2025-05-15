@@ -4,21 +4,24 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
 <script type="text/javascript">
     $(document).ready(function() {
-        // Initialize DataTable but disable pagination as we use server-side pagination
-        $("#fileTable").dataTable({
-            "language": {
-                "url": "${ctxPath}/static/js/datatables-i18n.json"
-            },
-            "order": [[5, "desc"]],
-            "columnDefs": [
-                { "orderable": false, "targets": [11] }
-            ],
-            "paging": false,
-            "info": false
+        // 设置CSRF令牌
+        var csrfHeader = '${_csrf.headerName}';
+        var csrfToken = '${_csrf.token}';
+        
+        // 为所有AJAX请求添加CSRF令牌
+        $.ajaxSetup({
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader(csrfHeader, csrfToken);
+            }
         });
         
+        // 使用 stupidtable 初始化表格排序
+        $("#fileTable").stupidtable();
+        // 默认按上传时间降序排序
+        $("#fileTable").find("th:eq(5)").stupidsort('desc');
+        
         // Handle file disable/enable toggle
-        $(".toggle-disabled").on("click", function(e) {
+        $(document).on("click", ".toggle-disabled", function(e) {
             e.preventDefault();
             var fileId = $(this).data("id");
             var disabled = $(this).data("disabled") === "true";
@@ -43,8 +46,9 @@
                         alert("操作失败");
                     }
                 },
-                error: function() {
-                    alert("操作失败");
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    alert("操作失败: " + error);
                 }
             });
         });
@@ -76,13 +80,14 @@
         });
         
         // Handle file deletion
-        $(".delete-file").on("click", function(e) {
+        $(document).on("click", ".delete-file", function(e) {
             e.preventDefault();
             if (confirm("确定要删除此文件吗?")) {
                 var fileId = $(this).data("id");
                 $.ajax({
                     url: "${ctxPath}/manager/files/" + fileId,
-                    type: "DELETE",
+                    type: "POST",
+                    data: { _method: "DELETE", '${_csrf.parameterName}': '${_csrf.token}' },
                     success: function(response) {
                         if (response === "success") {
                             location.reload();
@@ -90,15 +95,16 @@
                             alert("删除失败");
                         }
                     },
-                    error: function() {
-                        alert("删除失败");
+                    error: function(xhr, status, error) {
+                        console.error("AJAX Error:", status, error);
+                        alert("删除失败: " + error);
                     }
                 });
             }
         });
         
         // Handle URL copying
-        $(".copy-url").on("click", function(e) {
+        $(document).on("click", ".copy-url", function(e) {
             e.preventDefault();
             var url = $(this).data("url");
             var tempInput = document.createElement("input");
@@ -111,14 +117,15 @@
         });
         
         // Handle version update
-        $(".update-version").on("click", function(e) {
+        $(document).on("click", ".update-version", function(e) {
             e.preventDefault();
             var fileId = $(this).data("id");
-            $("#updateFileModal").data("id", fileId).show();
+            $("#updateFileId").val(fileId);
+            $("#updateFileModal").show();
         });
         
         // Close modal when clicking the close button
-        $(".close-modal").on("click", function() {
+        $(document).on("click", ".close-modal", function() {
             $("#updateFileModal").hide();
         });
     });
@@ -221,17 +228,17 @@
         <table class="res" id="fileTable">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>文件名</th>
-                    <th>版本</th>
-                    <th>描述</th>
-                    <th>大小</th>
-                    <th>上传时间</th>
-                    <th>最后更新</th>
-                    <th>下载次数</th>
-                    <th>上传者</th>
-                    <th>更新说明</th>
-                    <th>状态</th>
+                    <th data-sort="int">ID</th>
+                    <th data-sort="string">文件名</th>
+                    <th data-sort="string">版本</th>
+                    <th data-sort="string">描述</th>
+                    <th data-sort="string">大小</th>
+                    <th data-sort="string">上传时间</th>
+                    <th data-sort="string">最后更新</th>
+                    <th data-sort="int">下载次数</th>
+                    <th data-sort="string">上传者</th>
+                    <th data-sort="string">更新说明</th>
+                    <th data-sort="string">状态</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -368,16 +375,13 @@
 </div>
 
 <script>
-    // 设置模态框中的文件ID
-    $(".update-version").on("click", function() {
-        var fileId = $(this).data("id");
-        $("#updateFileId").val(fileId);
-    });
-    
     // 表单提交处理
-    $("#updateFileForm").on("submit", function(e) {
+    $(document).on("submit", "#updateFileForm", function(e) {
         e.preventDefault();
         var formData = new FormData(this);
+        
+        // 添加CSRF令牌
+        formData.append('${_csrf.parameterName}', '${_csrf.token}');
         
         $.ajax({
             url: $(this).attr("action"),
@@ -390,8 +394,9 @@
                 $("#updateFileModal").hide();
                 location.reload();
             },
-            error: function() {
-                alert("更新失败，请重试");
+            error: function(xhr, status, error) {
+                console.error("AJAX Error:", status, error);
+                alert("更新失败，请重试: " + error);
             }
         });
     });

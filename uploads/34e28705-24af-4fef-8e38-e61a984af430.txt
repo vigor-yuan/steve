@@ -1,20 +1,20 @@
 File Information
 ===============
 
-Filename: LICENSE-HEADER.txt
-Size: 765.0 B
+Filename: LICENSE.txt
+Size: 35.0 KB
 Content Type: text/plain
-Upload Time: 2025-05-15 20:27:21
+Upload Time: 2025-05-15 21:01:37
 Uploaded By: admin
-MD5 Hash: 16326d4c57d39eefe58a16540f89232c
+MD5 Hash: 3c34afdc3adf82d2448f12715a255122
 Download Limit: 10
 
 Description
 ===========
 
-11
+描述:
 
 Update Information
 =================
 
-1
+更新描述

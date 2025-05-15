@@ -355,7 +355,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             writer.write("Filename: " + record.getOriginalName() + "\n");
             writer.write("Size: " + formatFileSize(record.getFileSize()) + "\n");
             writer.write("Content Type: " + record.getContentType() + "\n");
-            writer.write("Upload Time: " + formatDateTime(record.getUploadTime().toDate()) + "\n");
+            writer.write("Upload Time: " + formatDateTime(record.getUploadTime()) + "\n");
             writer.write("Uploaded By: " + record.getUploadBy() + "\n");
             writer.write("MD5 Hash: " + record.getMd5Hash() + "\n");
             
@@ -419,7 +419,17 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
     
     private String formatDateTime(Date date) {
+        if (date == null) {
+            return "N/A";
+        }
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         return sdf.format(date);
+    }
+    
+    private String formatDateTime(DateTime dateTime) {
+        if (dateTime == null) {
+            return "N/A";
+        }
+        return dateTime.toString("yyyy-MM-dd HH:mm:ss");
     }
 }

@@ -202,6 +202,18 @@ public class FileManagementController {
         }
     }
     
+    /**
+     * 处理模拟的DELETE请求，用于支持不能直接发送DELETE请求的客户端
+     */
+    @PostMapping("/{id}")
+    @ResponseBody
+    public String deleteFilePost(@PathVariable Long id, @RequestParam(name = "_method", required = false) String method) {
+        if ("DELETE".equalsIgnoreCase(method)) {
+            return deleteFile(id);
+        }
+        return "error: Unsupported method";
+    }
+    
     @PostMapping("/max-downloads/{id}")
     @ResponseBody
     public String updateMaxDownloads(@PathVariable Long id, @RequestParam int maxDownloads) {
