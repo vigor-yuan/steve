@@ -34,4 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileStorageForm {
     private MultipartFile file;
     private String description;
+    private String version;
+    private Integer maxDownloads;
+    private String updateContent;
 }

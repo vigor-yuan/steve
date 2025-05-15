@@ -56,6 +56,11 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.UPLOAD_BY, record.getUploadBy())
                     .set(FILE_STORAGE.FILE_PATH, record.getFilePath())
                     .set(FILE_STORAGE.DESCRIPTION, record.getDescription())
+                    .set(FILE_STORAGE.MD5_HASH, record.getMd5Hash())
+                    .set(FILE_STORAGE.DOWNLOAD_COUNT, record.getDownloadCount())
+                    .set(FILE_STORAGE.MAX_DOWNLOADS, record.getMaxDownloads())
+                    .set(FILE_STORAGE.DISABLED, record.getDisabled())
+                    .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate().toDate() : null)
                     .returning(FILE_STORAGE.ID)
                     .fetchOne();
 
@@ -72,6 +77,11 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.UPLOAD_BY, record.getUploadBy())
                     .set(FILE_STORAGE.FILE_PATH, record.getFilePath())
                     .set(FILE_STORAGE.DESCRIPTION, record.getDescription())
+                    .set(FILE_STORAGE.MD5_HASH, record.getMd5Hash())
+                    .set(FILE_STORAGE.DOWNLOAD_COUNT, record.getDownloadCount())
+                    .set(FILE_STORAGE.MAX_DOWNLOADS, record.getMaxDownloads())
+                    .set(FILE_STORAGE.DISABLED, record.getDisabled())
+                    .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate().toDate() : null)
                     .where(FILE_STORAGE.ID.eq(record.getId()))
                     .execute();
             
@@ -83,6 +93,15 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
     public List<FileStorageRecord> getAll() {
         return ctx.selectFrom(FILE_STORAGE)
                 .orderBy(FILE_STORAGE.UPLOAD_TIME.desc())
+                .fetch(fileRecordMapper);
+    }
+    
+    @Override
+    public List<FileStorageRecord> getAll(int offset, int limit) {
+        return ctx.selectFrom(FILE_STORAGE)
+                .orderBy(FILE_STORAGE.UPLOAD_TIME.desc())
+                .limit(limit)
+                .offset(offset)
                 .fetch(fileRecordMapper);
     }
 
@@ -99,6 +118,58 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                 .where(FILE_STORAGE.ID.eq(id))
                 .execute() == 1;
     }
+    
+    @Override
+    public FileStorageRecord incrementDownloadCount(Long id) {
+        ctx.update(FILE_STORAGE)
+                .set(FILE_STORAGE.DOWNLOAD_COUNT, FILE_STORAGE.DOWNLOAD_COUNT.add(1))
+                .where(FILE_STORAGE.ID.eq(id))
+                .execute();
+        
+        // Check if max downloads reached, auto-disable if needed
+        ctx.update(FILE_STORAGE)
+                .set(FILE_STORAGE.DISABLED, true)
+                .where(FILE_STORAGE.ID.eq(id))
+                .and(FILE_STORAGE.MAX_DOWNLOADS.gt(0))
+                .and(FILE_STORAGE.DOWNLOAD_COUNT.ge(FILE_STORAGE.MAX_DOWNLOADS))
+                .execute();
+        
+        return getById(id);
+    }
+    
+    @Override
+    public FileStorageRecord updateDisabledStatus(Long id, boolean disabled) {
+        ctx.update(FILE_STORAGE)
+                .set(FILE_STORAGE.DISABLED, disabled)
+                .where(FILE_STORAGE.ID.eq(id))
+                .execute();
+        
+        return getById(id);
+    }
+    
+    @Override
+    public FileStorageRecord updateMaxDownloads(Long id, int maxDownloads) {
+        ctx.update(FILE_STORAGE)
+                .set(FILE_STORAGE.MAX_DOWNLOADS, maxDownloads)
+                .where(FILE_STORAGE.ID.eq(id))
+                .execute();
+        
+        // Check if current download count exceeds new max, auto-disable if needed
+        if (maxDownloads > 0) {
+            ctx.update(FILE_STORAGE)
+                    .set(FILE_STORAGE.DISABLED, true)
+                    .where(FILE_STORAGE.ID.eq(id))
+                    .and(FILE_STORAGE.DOWNLOAD_COUNT.ge(maxDownloads))
+                    .execute();
+        }
+        
+        return getById(id);
+    }
+    
+    @Override
+    public int getTotalCount() {
+        return ctx.fetchCount(FILE_STORAGE);
+    }
 
     private static final RecordMapper<Record, FileStorageRecord> fileRecordMapper = record -> 
             FileStorageRecord.builder()
@@ -111,5 +182,11 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .uploadBy(record.getValue(FILE_STORAGE.UPLOAD_BY))
                     .filePath(record.getValue(FILE_STORAGE.FILE_PATH))
                     .description(record.getValue(FILE_STORAGE.DESCRIPTION))
+                    .md5Hash(record.getValue(FILE_STORAGE.MD5_HASH))
+                    .downloadCount(record.getValue(FILE_STORAGE.DOWNLOAD_COUNT))
+                    .maxDownloads(record.getValue(FILE_STORAGE.MAX_DOWNLOADS))
+                    .disabled(record.getValue(FILE_STORAGE.DISABLED))
+                    .modifyDate(record.getValue(FILE_STORAGE.MODIFY_DATE) != null ? 
+                            new DateTime(record.getValue(FILE_STORAGE.MODIFY_DATE)) : null)
                     .build();
 }

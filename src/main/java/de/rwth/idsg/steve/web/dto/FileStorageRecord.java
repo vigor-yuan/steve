@@ -41,4 +41,39 @@ public class FileStorageRecord {
     private String uploadBy;
     private String filePath;
     private String description;
+    private String md5Hash;
+    private Integer downloadCount;
+    private Integer maxDownloads;
+    private Boolean disabled;
+    private DateTime modifyDate;
+    
+    /**
+     * Check if download is allowed based on max downloads
+     * 
+     * @return true if download is allowed, false otherwise
+     */
+    public boolean isDownloadAllowed() {
+        if (disabled != null && disabled) {
+            return false;
+        }
+        
+        if (maxDownloads == null || maxDownloads == 0) {
+            return true; // unlimited downloads
+        }
+        
+        return downloadCount < maxDownloads;
+    }
+    
+    /**
+     * Get remaining downloads
+     * 
+     * @return remaining downloads or -1 if unlimited
+     */
+    public int getRemainingDownloads() {
+        if (maxDownloads == null || maxDownloads == 0) {
+            return -1; // unlimited downloads
+        }
+        
+        return Math.max(0, maxDownloads - downloadCount);
+    }
 }

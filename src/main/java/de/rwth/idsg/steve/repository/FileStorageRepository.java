@@ -43,6 +43,15 @@ public interface FileStorageRepository {
      * @return List of all file records
      */
     List<FileStorageRecord> getAll();
+    
+    /**
+     * Get all file records with pagination
+     *
+     * @param offset The offset to start from
+     * @param limit The maximum number of records to return
+     * @return List of file records
+     */
+    List<FileStorageRecord> getAll(int offset, int limit);
 
     /**
      * Get file record by ID
@@ -59,4 +68,37 @@ public interface FileStorageRepository {
      * @return true if deletion successful
      */
     boolean delete(Long id);
+    
+    /**
+     * Increment download count for a file
+     *
+     * @param id The file ID
+     * @return The updated file record
+     */
+    FileStorageRecord incrementDownloadCount(Long id);
+    
+    /**
+     * Update the disabled status of a file
+     *
+     * @param id The file ID
+     * @param disabled The new disabled status
+     * @return The updated file record
+     */
+    FileStorageRecord updateDisabledStatus(Long id, boolean disabled);
+    
+    /**
+     * Update the maximum downloads for a file
+     *
+     * @param id The file ID
+     * @param maxDownloads The new maximum downloads
+     * @return The updated file record
+     */
+    FileStorageRecord updateMaxDownloads(Long id, int maxDownloads);
+    
+    /**
+     * Get total count of files
+     *
+     * @return Total count of files
+     */
+    int getTotalCount();
 }

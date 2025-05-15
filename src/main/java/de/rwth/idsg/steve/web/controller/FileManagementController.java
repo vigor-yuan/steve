@@ -30,113 +30,144 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.List;
 
 /**
- * Controller for file upload and download operations
+ * Controller for file management
  *
  * @author CASCADE AI Assistant
  */
 @Slf4j
 @Controller
-@RequestMapping(value = "/manager/files")
+@RequestMapping("/manager/files")
 public class FileManagementController {
+
+    private static final int DEFAULT_PAGE_SIZE = 10;
 
     @Autowired private FileStorageService fileStorageService;
 
-    private static final String UPLOAD_PATH = "/upload";
-    private static final String LIST_PATH = "";
-    private static final String DOWNLOAD_PATH = "/download/{id}";
-    private static final String DELETE_PATH = "/delete/{id}";
-
-    @RequestMapping(value = LIST_PATH, method = RequestMethod.GET)
-    public String getFileList(Model model) {
-        model.addAttribute("fileList", fileStorageService.getAll());
+    @GetMapping
+    public String getFiles(Model model, 
+                          @RequestParam(value = "page", defaultValue = "1") int page,
+                          @RequestParam(value = "size", defaultValue = "10") int size) {
+        // Validate page and size parameters
+        if (page < 1) page = 1;
+        if (size < 1 || size > 100) size = DEFAULT_PAGE_SIZE;
+        
+        int offset = (page - 1) * size;
+        
+        List<FileStorageRecord> files = fileStorageService.getAll(offset, size);
+        int totalFiles = fileStorageService.getTotalCount();
+        int totalPages = (int) Math.ceil((double) totalFiles / size);
+        
+        model.addAttribute("files", files);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("pageSize", size);
         model.addAttribute("fileForm", new FileStorageForm());
+        model.addAttribute("allowedFileTypes", fileStorageService.getAllowedFileTypes());
         return "files";
     }
 
-    @RequestMapping(value = UPLOAD_PATH, method = RequestMethod.POST)
-    public String handleFileUpload(@ModelAttribute("fileForm") FileStorageForm form,
-                                   Authentication authentication,
-                                   RedirectAttributes redirectAttributes) {
+    @PostMapping("/upload")
+    public String uploadFile(@ModelAttribute("fileForm") FileStorageForm fileForm,
+                             Authentication authentication,
+                             RedirectAttributes redirectAttributes) {
         try {
-            if (form.getFile() == null || form.getFile().isEmpty()) {
-                redirectAttributes.addFlashAttribute("errorMessage", "Please select a file to upload");
-                return "redirect:/manager/files";
-            }
-
-            // Check file type
-            if (!fileStorageService.isFileTypeAllowed(form.getFile().getOriginalFilename())) {
-                redirectAttributes.addFlashAttribute("errorMessage", 
-                        "File type not allowed. Allowed types: " + 
-                        fileStorageService.getAllowedFileTypes());
-                return "redirect:/manager/files";
-            }
-
             String username = authentication.getName();
-            FileStorageRecord record = fileStorageService.storeFile(form, username);
-            
-            redirectAttributes.addFlashAttribute("successMessage", 
-                    "File uploaded successfully: " + record.getOriginalName());
-            
+            FileStorageRecord storedFile = fileStorageService.storeFile(fileForm, username);
+            redirectAttributes.addFlashAttribute("success", "File uploaded successfully: " + storedFile.getOriginalName());
         } catch (IOException e) {
             log.error("Error uploading file", e);
-            redirectAttributes.addFlashAttribute("errorMessage", "Failed to upload file: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Failed to upload file: " + e.getMessage());
         }
-        
         return "redirect:/manager/files";
     }
 
-    @RequestMapping(value = DOWNLOAD_PATH, method = RequestMethod.GET)
+    @GetMapping("/download/{id}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable Long id, HttpServletRequest request) throws IOException {
+        Resource resource = fileStorageService.loadFileAsResource(id);
+        FileStorageRecord fileRecord = fileStorageService.getById(id);
+
+        // Try to determine file's content type
+        String contentType = fileRecord.getContentType();
+        if (contentType == null) {
+            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+        }
+
+        // Fallback to the default content type if type could not be determined
+        if (contentType == null) {
+            contentType = "application/octet-stream";
+        }
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileRecord.getOriginalName() + "\"")
+                .body(resource);
+    }
+    
+    @GetMapping("/download-description/{id}")
+    public ResponseEntity<Resource> downloadFileDescription(@PathVariable Long id) throws IOException {
+        Resource resource = fileStorageService.loadFileDescriptionAsResource(id);
+        FileStorageRecord fileRecord = fileStorageService.getById(id);
+        
+        String descriptionFileName = fileRecord.getOriginalName() + ".description.txt";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + descriptionFileName + "\"")
+                .body(resource);
+    }
+
+    @DeleteMapping("/{id}")
     @ResponseBody
-    public ResponseEntity<Resource> downloadFile(@PathVariable Long id, HttpServletRequest request) {
+    public String deleteFile(@PathVariable Long id) {
+        boolean deleted = fileStorageService.deleteFile(id);
+        return deleted ? "success" : "error";
+    }
+    
+    @PostMapping("/disable/{id}")
+    @ResponseBody
+    public String disableFile(@PathVariable Long id, @RequestParam boolean disabled) {
         try {
-            // Load file as Resource
-            Resource resource = fileStorageService.loadFileAsResource(id);
-            FileStorageRecord record = fileStorageService.getById(id);
-
-            // Try to determine file's content type
-            String contentType = record.getContentType();
-            if (contentType == null) {
-                contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+            fileStorageService.updateDisabledStatus(id, disabled);
+            return "success";
+        } catch (Exception e) {
+            log.error("Error updating file disabled status", e);
+            return "error";
+        }
+    }
+    
+    @PostMapping("/max-downloads/{id}")
+    @ResponseBody
+    public String updateMaxDownloads(@PathVariable Long id, @RequestParam int maxDownloads) {
+        try {
+            if (maxDownloads < 0) {
+                return "error: Max downloads cannot be negative";
             }
-            if (contentType == null) {
-                contentType = "application/octet-stream";
-            }
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + record.getOriginalName() + "\"")
-                    .body(resource);
-                    
-        } catch (IOException ex) {
-            log.error("Error downloading file", ex);
-            return ResponseEntity.notFound().build();
+            fileStorageService.updateMaxDownloads(id, maxDownloads);
+            return "success";
+        } catch (Exception e) {
+            log.error("Error updating max downloads", e);
+            return "error";
         }
     }
 
-    @RequestMapping(value = DELETE_PATH, method = RequestMethod.POST)
-    public String deleteFile(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        try {
-            if (fileStorageService.deleteFile(id)) {
-                redirectAttributes.addFlashAttribute("successMessage", "File deleted successfully");
-            } else {
-                redirectAttributes.addFlashAttribute("errorMessage", "Failed to delete file");
-            }
-        } catch (Exception e) {
-            log.error("Error deleting file", e);
-            redirectAttributes.addFlashAttribute("errorMessage", "Error deleting file: " + e.getMessage());
-        }
-        
-        return "redirect:/manager/files";
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<String> handleIOException(IOException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
     }
 }
