@@ -69,6 +69,7 @@
                             <li><a href="${ctxPath}/manager/operations/tasks">Tasks</a></li>
                         </ul>
                     </li>
+                    <li><a href="${ctxPath}/manager/files">FILES</a></li>
                     <li><a href="${ctxPath}/manager/settings">SETTINGS</a></li>
                     <li><a href="${ctxPath}/manager/log">LOG</a></li>
                     <li><a href="${ctxPath}/manager/about">ABOUT</a></li>

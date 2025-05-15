@@ -59,6 +59,9 @@ public enum SteveConfiguration {
     private final Auth auth;
     private final DB db;
     private final Jetty jetty;
+    private final String fileUploadDir;
+    private final long fileUploadMaxSize;
+    private final String fileUploadAllowedTypes;
 
     SteveConfiguration() {
         PropertiesFileLoader p = new PropertiesFileLoader("main.properties");
@@ -101,6 +104,12 @@ public enum SteveConfiguration {
                    .wsSessionSelectStrategy(
                            WsSessionSelectStrategyEnum.fromName(p.getString("ws.session.select.strategy")))
                    .build();
+                   
+        // File upload configuration
+        fileUploadDir = p.getOptionalString("file.upload.dir", "uploads");
+        fileUploadMaxSize = p.getOptionalLong("file.upload.max-size", 10485760L); // Default: 10MB
+        fileUploadAllowedTypes = p.getOptionalString("file.upload.allowed-types", 
+                "pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png,gif");
 
         validate();
     }

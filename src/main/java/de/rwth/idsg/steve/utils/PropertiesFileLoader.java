@@ -127,6 +127,25 @@ public class PropertiesFileLoader {
             return Integer.parseInt(s);
         }
     }
+    
+    public Long getOptionalLong(String key) {
+        String s = getOptionalString(key);
+        if (s == null) {
+            return null;
+        } else {
+            return Long.parseLong(s);
+        }
+    }
+    
+    public String getOptionalString(String key, String defaultValue) {
+        String value = getOptionalString(key);
+        return value != null ? value : defaultValue;
+    }
+    
+    public Long getOptionalLong(String key, Long defaultValue) {
+        Long value = getOptionalLong(key);
+        return value != null ? value : defaultValue;
+    }
 
     // -------------------------------------------------------------------------
     // Private helpers
