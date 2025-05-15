@@ -35,12 +35,14 @@
                 success: function(response) {
                     if (response === "success") {
                         button.data("disabled", newDisabled.toString());
+                        var statusCell = button.closest('tr').find('td:nth-child(11)');
+                        
                         if (newDisabled) {
-                            button.text("启用");
-                            button.removeClass("redSubmit").addClass("blueSubmit");
+                            button.html('<span class="blueSubmit">启用</span>');
+                            statusCell.html('<span style="color: red;">已禁用</span>');
                         } else {
-                            button.text("禁用");
-                            button.removeClass("blueSubmit").addClass("redSubmit");
+                            button.html('<span class="redSubmit">禁用</span>');
+                            statusCell.html('<span style="color: green;">可用</span>');
                         }
                     } else {
                         alert("操作失败");
@@ -90,7 +92,11 @@
                     data: { _method: "DELETE", '${_csrf.parameterName}': '${_csrf.token}' },
                     success: function(response) {
                         if (response === "success") {
-                            location.reload();
+                            // 找到当前行并移除
+                            var row = $("button[data-id='" + fileId + "']").closest('tr');
+                            row.fadeOut(400, function() {
+                                row.remove();
+                            });
                         } else {
                             alert("删除失败");
                         }
@@ -247,7 +253,7 @@
                     <tr>
                         <td>${file.id}</td>
                         <td>${file.originalName}</td>
-                        <td>${file.version}</td>
+                        <td>${not empty file.version ? file.version : '1.0'}</td>
                         <td>${file.description}</td>
                         <td>
                             <c:choose>
@@ -392,7 +398,28 @@
             success: function(response) {
                 alert("文件版本更新成功");
                 $("#updateFileModal").hide();
-                location.reload();
+                
+                // 获取表单数据
+                var fileId = $("#updateFileId").val();
+                var version = $("input[name='version']").val();
+                var updateNotes = $("textarea[name='updateNotes']").val();
+                
+                // 更新表格中的数据
+                var row = $("button.update-version[data-id='" + fileId + "']").closest('tr');
+                row.find('td:nth-child(3)').text(version); // 版本列
+                row.find('td:nth-child(10)').text(updateNotes); // 更新说明列
+                
+                // 更新最后更新时间
+                var now = new Date();
+                var formattedDate = now.getFullYear() + '-' + 
+                    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(now.getDate()).padStart(2, '0') + ' ' + 
+                    String(now.getHours()).padStart(2, '0') + ':' + 
+                    String(now.getMinutes()).padStart(2, '0');
+                row.find('td:nth-child(7)').text(formattedDate); // 最后更新列
+                
+                // 清空表单
+                $("#updateFileForm")[0].reset();
             },
             error: function(xhr, status, error) {
                 console.error("AJAX Error:", status, error);

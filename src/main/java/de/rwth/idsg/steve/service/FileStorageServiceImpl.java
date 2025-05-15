@@ -89,8 +89,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
-    public FileStorageRecord storeFile(MultipartFile file, String description, String username) throws IOException {
+    public FileStorageRecord storeFile(FileStorageForm form, String description, String username) throws IOException {
         // Normalize file name
+        MultipartFile file = form.getFile();
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
 
         // Check if the file's name contains invalid characters
@@ -136,8 +137,11 @@ public class FileStorageServiceImpl implements FileStorageService {
                 .description(description)
                 .md5Hash(md5Hash)
                 .downloadCount(0)
-                .maxDownloads(0) // Default to unlimited
+                .maxDownloads(form.getMaxDownloads()) // Default to unlimited
                 .disabled(false)
+                .version(form.getVersion()) // 设置默认版本号
+                .updateNotes(form.getUpdateContent()) // 设置默认更新说明
+                .lastUpdated(DateTime.now()) // 设置最后更新时间
                 .build();
 
         // Save to database
@@ -151,7 +155,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public FileStorageRecord storeFile(FileStorageForm form, String username) throws IOException {
-        FileStorageRecord record = storeFile(form.getFile(), form.getDescription(), username);
+        FileStorageRecord record = storeFile(form, form.getDescription(), username);
         
         // Update max downloads if specified
         if (form.getMaxDownloads() != null && form.getMaxDownloads() > 0) {
@@ -183,20 +187,32 @@ public class FileStorageServiceImpl implements FileStorageService {
             throw new IOException("Maximum download limit reached for file: " + record.getFileName());
         }
         
+        // 记录下载的文件名
+        log.info("Downloading original file: {} ({})", record.getFileName(), record.getOriginalName());
+        
+        // 更新下载计数
+        fileStorageRepository.incrementDownloadCount(id);
+        
         return loadFileAsResource(record.getFileName());
     }
 
     @Override
     public Resource loadFileAsResource(String fileName) throws IOException {
         try {
+            // 确保我们加载的是原始文件而不是描述文件
             Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            log.info("Loading file from path: {}", filePath.toString());
+            
             Resource resource = new UrlResource(filePath.toUri());
             if(resource.exists()) {
+                log.info("Resource exists: {}, size: {}", resource.getFilename(), resource.contentLength());
                 return resource;
             } else {
+                log.error("File not found at path: {}", filePath.toString());
                 throw new FileNotFoundException("File not found " + fileName);
             }
         } catch (MalformedURLException ex) {
+            log.error("Malformed URL for file: {}", fileName, ex);
             throw new FileNotFoundException("File not found " + fileName);
         }
     }
@@ -408,7 +424,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     
     private Path getDescriptionFilePath(FileStorageRecord record) {
         String filenameWithoutExt = record.getFileName().substring(0, record.getFileName().lastIndexOf('.'));
-        String descFilename = filenameWithoutExt + ".txt";
+        String descFilename = filenameWithoutExt + "-des.txt";
         return this.fileStorageLocation.resolve(descFilename);
     }
     

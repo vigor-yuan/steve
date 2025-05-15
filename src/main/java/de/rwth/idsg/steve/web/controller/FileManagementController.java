@@ -24,7 +24,9 @@ import de.rwth.idsg.steve.web.dto.FileStorageRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -44,6 +46,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 /**
@@ -157,14 +161,40 @@ public class FileManagementController {
     @GetMapping("/download/{id}")
     public ResponseEntity<Resource> downloadFile(@PathVariable Long id) {
         try {
-            // 获取文件资源
-            Resource resource = fileStorageService.loadFileAsResource(id);
+            log.info("Attempting to download file with ID: {}", id);
+            
+            // 获取文件记录
+            FileStorageRecord record = fileStorageService.getById(id);
+            if (record == null) {
+                log.error("File record not found for ID: {}", id);
+                return ResponseEntity.notFound().build();
+            }
+            
+            log.info("Found file record: fileName={}, originalName={}, filePath={}", 
+                     record.getFileName(), record.getOriginalName(), record.getFilePath());
+            
+            // 直接使用文件路径加载原始文件
+            Path filePath = Paths.get(record.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+            
+            if (!resource.exists() || !resource.isReadable()) {
+                log.error("File not found or not readable: {}", filePath);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            
+            log.info("Loaded resource directly from path: {}, exists={}, readable={}, size={}", 
+                     filePath, resource.exists(), resource.isReadable(), resource.contentLength());
+            
+            // 更新下载计数
+            fileStorageService.incrementDownloadCount(id);
             
             // 获取文件的原始名称
-            String originalFilename = fileStorageService.getOriginalFilename(id);
+            String originalFilename = record.getOriginalName();
+            log.info("Original filename: {}", originalFilename);
             
             // 确定内容类型
-            String contentType = "application/octet-stream";
+            String contentType = record.getContentType() != null ? 
+                                record.getContentType() : "application/octet-stream";
             
             // 返回文件下载响应
             return ResponseEntity.ok()
@@ -172,8 +202,11 @@ public class FileManagementController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + originalFilename + "\"")
                     .body(resource);
         } catch (IOException ex) {
-            log.error("文件下载失败", ex);
+            log.error("文件下载失败: {}", ex.getMessage(), ex);
             return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception ex) {
+            log.error("下载过程中发生未知错误: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 

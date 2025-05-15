@@ -61,6 +61,9 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.MAX_DOWNLOADS, record.getMaxDownloads())
                     .set(FILE_STORAGE.DISABLED, record.getDisabled())
                     .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate() : null)
+                    .set(FILE_STORAGE.VERSION, record.getVersion() != null ? record.getVersion() : "1.0")
+                    .set(FILE_STORAGE.UPDATE_NOTES, record.getUpdateNotes())
+                    .set(FILE_STORAGE.LAST_UPDATED, record.getLastUpdated() != null ? record.getLastUpdated() : record.getUploadTime())
                     .returning(FILE_STORAGE.ID)
                     .fetchOne();
 
@@ -82,6 +85,9 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.MAX_DOWNLOADS, record.getMaxDownloads())
                     .set(FILE_STORAGE.DISABLED, record.getDisabled())
                     .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate() : null)
+                    .set(FILE_STORAGE.VERSION, record.getVersion() != null ? record.getVersion() : "1.0")
+                    .set(FILE_STORAGE.UPDATE_NOTES, record.getUpdateNotes())
+                    .set(FILE_STORAGE.LAST_UPDATED, record.getLastUpdated() != null ? record.getLastUpdated() : record.getUploadTime())
                     .where(FILE_STORAGE.ID.eq(record.getId()))
                     .execute();
             

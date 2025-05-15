@@ -36,16 +36,7 @@ import java.util.Map;
  */
 public interface FileStorageService {
 
-    /**
-     * Store a file
-     *
-     * @param file The file to store
-     * @param description Optional description
-     * @param username Username of uploader
-     * @return The stored file record
-     * @throws IOException If file storage fails
-     */
-    FileStorageRecord storeFile(MultipartFile file, String description, String username) throws IOException;
+    FileStorageRecord storeFile(FileStorageForm form, String description, String username) throws IOException;
 
     /**
      * Store a file from form
