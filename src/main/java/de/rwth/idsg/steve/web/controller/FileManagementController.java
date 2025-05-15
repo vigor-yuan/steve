@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpServletRequest;
@@ -83,42 +84,99 @@ public class FileManagementController {
     }
 
     @PostMapping("/upload")
-    public String uploadFile(@ModelAttribute("fileForm") FileStorageForm fileForm,
-                             Authentication authentication,
-                             RedirectAttributes redirectAttributes) {
-        try {
-            String username = authentication.getName();
-            FileStorageRecord storedFile = fileStorageService.storeFile(fileForm, username);
-            redirectAttributes.addFlashAttribute("success", "File uploaded successfully: " + storedFile.getOriginalName());
-        } catch (IOException e) {
-            log.error("Error uploading file", e);
-            redirectAttributes.addFlashAttribute("error", "Failed to upload file: " + e.getMessage());
+    public String uploadFile(@ModelAttribute("fileForm") FileStorageForm form,
+                             org.springframework.validation.BindingResult result,
+                             RedirectAttributes redirectAttributes,
+                             java.security.Principal principal) {
+        if (result.hasErrors()) {
+            return "redirect:/manager/files";
         }
+        
+        try {
+            fileStorageService.storeFile(form, principal.getName());
+            redirectAttributes.addFlashAttribute("success", "文件上传成功");
+        } catch (Exception e) {
+            log.error("文件上传失败", e);
+            redirectAttributes.addFlashAttribute("error", "文件上传失败: " + e.getMessage());
+        }
+        
         return "redirect:/manager/files";
+    }
+    
+    /**
+     * 更新文件版本
+     */
+    @PostMapping("/update")
+    public String updateFile(@RequestParam("id") Long id,
+                           @RequestParam("file") MultipartFile file,
+                           @RequestParam("version") String version,
+                           @RequestParam("updateNotes") String updateNotes,
+                           RedirectAttributes redirectAttributes,
+                           java.security.Principal principal) {
+        try {
+            fileStorageService.updateFileVersion(id, file, version, updateNotes);
+            redirectAttributes.addFlashAttribute("success", "文件版本更新成功");
+        } catch (Exception e) {
+            log.error("文件版本更新失败", e);
+            redirectAttributes.addFlashAttribute("error", "文件版本更新失败: " + e.getMessage());
+        }
+        
+        return "redirect:/manager/files";
+    }
+    
+    /**
+     * 切换文件禁用状态
+     */
+    @PostMapping("/disable/{id}")
+    @ResponseBody
+    public String toggleFileStatus(@PathVariable Long id, @RequestParam boolean disabled) {
+        try {
+            fileStorageService.toggleFileStatus(id, disabled);
+            return "success";
+        } catch (Exception e) {
+            log.error("切换文件状态失败", e);
+            return "error: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * 获取文件下载URL
+     */
+    @GetMapping("/url/{id}")
+    @ResponseBody
+    public String getDownloadUrl(@PathVariable Long id, HttpServletRequest request) {
+        try {
+            String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
+            return baseUrl + request.getContextPath() + "/manager/files/download/" + id;
+        } catch (Exception e) {
+            log.error("获取下载URL失败", e);
+            return "error: " + e.getMessage();
+        }
     }
 
     @GetMapping("/download/{id}")
-    public ResponseEntity<Resource> downloadFile(@PathVariable Long id, HttpServletRequest request) throws IOException {
-        Resource resource = fileStorageService.loadFileAsResource(id);
-        FileStorageRecord fileRecord = fileStorageService.getById(id);
-
-        // Try to determine file's content type
-        String contentType = fileRecord.getContentType();
-        if (contentType == null) {
-            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+    public ResponseEntity<Resource> downloadFile(@PathVariable Long id) {
+        try {
+            // 获取文件资源
+            Resource resource = fileStorageService.loadFileAsResource(id);
+            
+            // 获取文件的原始名称
+            String originalFilename = fileStorageService.getOriginalFilename(id);
+            
+            // 确定内容类型
+            String contentType = "application/octet-stream";
+            
+            // 返回文件下载响应
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + originalFilename + "\"")
+                    .body(resource);
+        } catch (IOException ex) {
+            log.error("文件下载失败", ex);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).body(null);
         }
-
-        // Fallback to the default content type if type could not be determined
-        if (contentType == null) {
-            contentType = "application/octet-stream";
-        }
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileRecord.getOriginalName() + "\"")
-                .body(resource);
     }
-    
+
     @GetMapping("/download-description/{id}")
     public ResponseEntity<Resource> downloadFileDescription(@PathVariable Long id) throws IOException {
         Resource resource = fileStorageService.loadFileDescriptionAsResource(id);
@@ -135,18 +193,11 @@ public class FileManagementController {
     @DeleteMapping("/{id}")
     @ResponseBody
     public String deleteFile(@PathVariable Long id) {
-        boolean deleted = fileStorageService.deleteFile(id);
-        return deleted ? "success" : "error";
-    }
-    
-    @PostMapping("/disable/{id}")
-    @ResponseBody
-    public String disableFile(@PathVariable Long id, @RequestParam boolean disabled) {
         try {
-            fileStorageService.updateDisabledStatus(id, disabled);
+            fileStorageService.deleteFile(id);
             return "success";
         } catch (Exception e) {
-            log.error("Error updating file disabled status", e);
+            log.error("文件删除失败", e);
             return "error";
         }
     }

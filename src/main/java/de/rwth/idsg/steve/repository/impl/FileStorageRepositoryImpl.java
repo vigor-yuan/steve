@@ -52,7 +52,7 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.ORIGINAL_NAME, record.getOriginalName())
                     .set(FILE_STORAGE.FILE_SIZE, record.getFileSize())
                     .set(FILE_STORAGE.CONTENT_TYPE, record.getContentType())
-                    .set(FILE_STORAGE.UPLOAD_TIME, record.getUploadTime().toDate())
+                    .set(FILE_STORAGE.UPLOAD_TIME, record.getUploadTime())
                     .set(FILE_STORAGE.UPLOAD_BY, record.getUploadBy())
                     .set(FILE_STORAGE.FILE_PATH, record.getFilePath())
                     .set(FILE_STORAGE.DESCRIPTION, record.getDescription())
@@ -60,7 +60,7 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.DOWNLOAD_COUNT, record.getDownloadCount())
                     .set(FILE_STORAGE.MAX_DOWNLOADS, record.getMaxDownloads())
                     .set(FILE_STORAGE.DISABLED, record.getDisabled())
-                    .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate().toDate() : null)
+                    .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate() : null)
                     .returning(FILE_STORAGE.ID)
                     .fetchOne();
 
@@ -73,7 +73,7 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.ORIGINAL_NAME, record.getOriginalName())
                     .set(FILE_STORAGE.FILE_SIZE, record.getFileSize())
                     .set(FILE_STORAGE.CONTENT_TYPE, record.getContentType())
-                    .set(FILE_STORAGE.UPLOAD_TIME, record.getUploadTime().toDate())
+                    .set(FILE_STORAGE.UPLOAD_TIME, record.getUploadTime())
                     .set(FILE_STORAGE.UPLOAD_BY, record.getUploadBy())
                     .set(FILE_STORAGE.FILE_PATH, record.getFilePath())
                     .set(FILE_STORAGE.DESCRIPTION, record.getDescription())
@@ -81,7 +81,7 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .set(FILE_STORAGE.DOWNLOAD_COUNT, record.getDownloadCount())
                     .set(FILE_STORAGE.MAX_DOWNLOADS, record.getMaxDownloads())
                     .set(FILE_STORAGE.DISABLED, record.getDisabled())
-                    .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate().toDate() : null)
+                    .set(FILE_STORAGE.MODIFY_DATE, record.getModifyDate() != null ? record.getModifyDate() : null)
                     .where(FILE_STORAGE.ID.eq(record.getId()))
                     .execute();
             
@@ -170,6 +170,41 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
     public int getTotalCount() {
         return ctx.fetchCount(FILE_STORAGE);
     }
+    
+    @Override
+    public String getFileName(Long id) {
+        return ctx.select(FILE_STORAGE.FILE_NAME)
+                .from(FILE_STORAGE)
+                .where(FILE_STORAGE.ID.eq(id))
+                .fetchOneInto(String.class);
+    }
+    
+    @Override
+    public FileStorageRecord updateFileVersion(Long id, String fileName, String version, String updateNotes, String md5Hash, long fileSize) {
+        ctx.update(FILE_STORAGE)
+                .set(FILE_STORAGE.FILE_NAME, fileName)
+                .set(FILE_STORAGE.FILE_SIZE, fileSize)
+                .set(FILE_STORAGE.MD5_HASH, md5Hash)
+                .set(FILE_STORAGE.VERSION, version)
+                .set(FILE_STORAGE.UPDATE_NOTES, updateNotes)
+                .set(FILE_STORAGE.LAST_UPDATED, DateTime.now())
+                .where(FILE_STORAGE.ID.eq(id))
+                .execute();
+        
+        return getById(id);
+    }
+    
+    @Override
+    public FileStorageRecord updateFileInfo(Long id, String description, String version) {
+        ctx.update(FILE_STORAGE)
+                .set(FILE_STORAGE.DESCRIPTION, description)
+                .set(FILE_STORAGE.VERSION, version)
+                .set(FILE_STORAGE.LAST_UPDATED, DateTime.now())
+                .where(FILE_STORAGE.ID.eq(id))
+                .execute();
+        
+        return getById(id);
+    }
 
     private static final RecordMapper<Record, FileStorageRecord> fileRecordMapper = record -> 
             FileStorageRecord.builder()
@@ -188,5 +223,9 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                     .disabled(record.getValue(FILE_STORAGE.DISABLED))
                     .modifyDate(record.getValue(FILE_STORAGE.MODIFY_DATE) != null ? 
                             new DateTime(record.getValue(FILE_STORAGE.MODIFY_DATE)) : null)
+                    .version(record.getValue(FILE_STORAGE.VERSION))
+                    .updateNotes(record.getValue(FILE_STORAGE.UPDATE_NOTES))
+                    .lastUpdated(record.getValue(FILE_STORAGE.LAST_UPDATED) != null ? 
+                            new DateTime(record.getValue(FILE_STORAGE.LAST_UPDATED)) : null)
                     .build();
 }

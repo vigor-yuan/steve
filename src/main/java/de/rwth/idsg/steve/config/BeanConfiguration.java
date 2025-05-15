@@ -43,13 +43,16 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
+import org.springframework.web.filter.CharacterEncodingFilter;
 
 import javax.annotation.PreDestroy;
+import javax.servlet.MultipartConfigElement;
 import javax.validation.Validator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -223,6 +226,34 @@ public class BeanConfiguration implements WebMvcConfigurer {
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addViewController("/manager/signin").setViewName("signin");
         registry.setOrder(Ordered.HIGHEST_PRECEDENCE);
+    }
+
+    @Bean
+    public CharacterEncodingFilter characterEncodingFilter() {
+        CharacterEncodingFilter filter = new CharacterEncodingFilter();
+        filter.setEncoding("UTF-8");
+        filter.setForceEncoding(true);
+        return filter;
+    }
+
+    @Bean
+    public StandardServletMultipartResolver multipartResolver() {
+        return new StandardServletMultipartResolver();
+    }
+
+    @Bean
+    public MultipartConfigElement multipartConfigElement() {
+        String location = SteveConfiguration.CONFIG.getFileUploadDir();
+        long maxFileSize = SteveConfiguration.CONFIG.getFileUploadMaxSize();
+        long maxRequestSize = maxFileSize;
+        int fileSizeThreshold = 0;
+
+        return new MultipartConfigElement(
+            location,
+            maxFileSize,
+            maxRequestSize,
+            fileSizeThreshold
+        );
     }
 
 }

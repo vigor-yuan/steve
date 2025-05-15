@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service interface for file storage operations
@@ -64,7 +65,24 @@ public interface FileStorageService {
      * @throws IOException If file loading fails
      */
     Resource loadFileAsResource(Long id) throws IOException;
+
+    /**
+     * Load a file as a resource
+     *
+     * @param fileName The file name
+     * @return The file resource
+     * @throws IOException If file loading fails
+     */
+    Resource loadFileAsResource(String fileName) throws IOException;
     
+    /**
+     * Get the original filename of a file
+     *
+     * @param id The file ID
+     * @return The original filename
+     */
+    String getOriginalFilename(Long id);
+
     /**
      * Load a file description as a resource
      *
@@ -171,4 +189,22 @@ public interface FileStorageService {
      * @return Total count of files
      */
     int getTotalCount();
+    
+    /**
+     * Update file version
+     *
+     * @param id The file ID
+     * @param file The new file
+     * @param version The new version
+     * @param updateNotes Update notes
+     */
+    void updateFileVersion(Long id, MultipartFile file, String version, String updateNotes);
+    
+    /**
+     * Toggle file status (enabled/disabled)
+     *
+     * @param id The file ID
+     * @param disabled Whether the file should be disabled
+     */
+    void toggleFileStatus(Long id, boolean disabled);
 }

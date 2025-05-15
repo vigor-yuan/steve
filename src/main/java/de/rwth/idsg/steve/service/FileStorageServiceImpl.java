@@ -35,6 +35,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -167,37 +168,101 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public Resource loadFileAsResource(Long id) throws IOException {
+        FileStorageRecord record = fileStorageRepository.getById(id);
+        if (record == null) {
+            throw new IOException("File not found with id: " + id);
+        }
+        
+        // Check if file is disabled
+        if (record.getDisabled()) {
+            throw new IOException("File is disabled: " + record.getFileName());
+        }
+        
+        // Check if max downloads reached
+        if (record.getMaxDownloads() > 0 && record.getDownloadCount() >= record.getMaxDownloads()) {
+            throw new IOException("Maximum download limit reached for file: " + record.getFileName());
+        }
+        
+        return loadFileAsResource(record.getFileName());
+    }
+
+    @Override
+    public Resource loadFileAsResource(String fileName) throws IOException {
         try {
-            FileStorageRecord record = fileStorageRepository.getById(id);
-            if (record == null) {
-                throw new IOException("File not found with id: " + id);
-            }
-            
-            // Check if file is disabled
-            if (record.getDisabled()) {
-                throw new IOException("File is disabled: " + record.getFileName());
-            }
-            
-            // Check if max downloads reached
-            if (record.getMaxDownloads() > 0 && record.getDownloadCount() >= record.getMaxDownloads()) {
-                throw new IOException("Maximum download count reached for file: " + record.getFileName());
-            }
-
-            Path filePath = Paths.get(record.getFilePath());
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
             Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists()) {
-                // Increment download count
-                incrementDownloadCount(id);
+            if(resource.exists()) {
                 return resource;
             } else {
-                throw new IOException("File not found: " + record.getFileName());
+                throw new FileNotFoundException("File not found " + fileName);
             }
         } catch (MalformedURLException ex) {
-            throw new IOException("File not found", ex);
+            throw new FileNotFoundException("File not found " + fileName);
         }
     }
     
+    @Override
+    public String getOriginalFilename(Long id) {
+        FileStorageRecord record = fileStorageRepository.getById(id);
+        if (record == null) {
+            throw new SteveException("File not found with id: " + id);
+        }
+        return record.getOriginalName();
+    }
+    
+    @Override
+    public void updateFileVersion(Long id, MultipartFile file, String version, String updateNotes) {
+        try {
+            // 检查文件是否存在
+            FileStorageRecord record = fileStorageRepository.getById(id);
+            if (record == null) {
+                throw new SteveException("File not found with id: " + id);
+            }
+            
+            // 保存新文件
+            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+            String fileExtension = getFileExtension(originalFilename);
+            String newFileName = UUID.randomUUID().toString() + "." + fileExtension;
+            
+            // 检查文件类型是否允许
+            if (!isFileTypeAllowed(originalFilename)) {
+                throw new SteveException("File type not allowed. Allowed types: " + getAllowedFileTypes());
+            }
+            
+            // 保存文件到磁盘
+            Path targetLocation = this.fileStorageLocation.resolve(newFileName);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            
+            // 计算MD5哈希值
+            String md5Hash = calculateMD5(file.getInputStream());
+            
+            // 更新数据库记录
+            fileStorageRepository.updateFileVersion(id, newFileName, version, updateNotes, md5Hash, file.getSize());
+            
+            // 删除旧文件
+            if (!record.getFileName().equals(newFileName)) {
+                Path oldFilePath = this.fileStorageLocation.resolve(record.getFileName()).normalize();
+                Files.deleteIfExists(oldFilePath);
+            }
+            
+            // 生成更新后的描述文件
+            FileStorageRecord updatedRecord = fileStorageRepository.getById(id);
+            generateDescriptionFile(updatedRecord, updateNotes);
+            
+        } catch (IOException ex) {
+            throw new SteveException("Could not update file version", ex);
+        }
+    }
+    
+    @Override
+    public void toggleFileStatus(Long id, boolean disabled) {
+        FileStorageRecord record = fileStorageRepository.getById(id);
+        if (record == null) {
+            throw new SteveException("File not found with id: " + id);
+        }
+        fileStorageRepository.updateDisabledStatus(id, disabled);
+    }
+
     @Override
     public Resource loadFileDescriptionAsResource(Long id) throws IOException {
         try {

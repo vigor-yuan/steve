@@ -81,6 +81,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .logout()
                 .logoutUrl(prefix + "signout")
                 .and()
+            .csrf()
+                .ignoringAntMatchers(prefix + "files/upload")
+                .and()
             .httpBasic();
     }
 

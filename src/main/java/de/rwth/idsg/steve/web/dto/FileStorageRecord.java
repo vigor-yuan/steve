@@ -46,6 +46,10 @@ public class FileStorageRecord {
     private Integer maxDownloads;
     private Boolean disabled;
     private DateTime modifyDate;
+    private String version;
+    private String updateNotes;
+    private DateTime lastUpdated;
+    private String downloadUrl;
     
     /**
      * Check if download is allowed based on max downloads

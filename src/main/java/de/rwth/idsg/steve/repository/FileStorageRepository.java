@@ -101,4 +101,35 @@ public interface FileStorageRepository {
      * @return Total count of files
      */
     int getTotalCount();
+    
+    /**
+     * Get file name by ID
+     *
+     * @param id The file ID
+     * @return The file name
+     */
+    String getFileName(Long id);
+    
+    /**
+     * Update file version
+     *
+     * @param id The file ID
+     * @param fileName The new file name
+     * @param version The new version
+     * @param updateNotes The update notes
+     * @param md5Hash The new MD5 hash
+     * @param fileSize The new file size
+     * @return The updated file record
+     */
+    FileStorageRecord updateFileVersion(Long id, String fileName, String version, String updateNotes, String md5Hash, long fileSize);
+    
+    /**
+     * Update file info
+     *
+     * @param id The file ID
+     * @param description The new description
+     * @param version The new version
+     * @return The updated file record
+     */
+    FileStorageRecord updateFileInfo(Long id, String description, String version);
 }
