@@ -117,6 +117,18 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
                 .where(FILE_STORAGE.ID.eq(id))
                 .fetchOne(fileRecordMapper);
     }
+    
+    @Override
+    public FileStorageRecord getByOriginalName(String originalName) {
+        // 返回最新的记录（按上传时间或最后更新时间排序）
+        return ctx.selectFrom(FILE_STORAGE)
+                .where(FILE_STORAGE.ORIGINAL_NAME.eq(originalName))
+                .orderBy(FILE_STORAGE.LAST_UPDATED.desc().nullsLast(), FILE_STORAGE.UPLOAD_TIME.desc())
+                .limit(1)
+                .fetchOne(fileRecordMapper);
+    }
+    
+
 
     @Override
     public boolean delete(Long id) {
@@ -187,12 +199,27 @@ public class FileStorageRepositoryImpl implements FileStorageRepository {
     
     @Override
     public FileStorageRecord updateFileVersion(Long id, String fileName, String version, String updateNotes, String md5Hash, long fileSize) {
+        // 调用新的带描述参数的方法，传入null作为描述
+        return updateFileVersion(id, fileName, null, version, updateNotes, md5Hash, fileSize);
+    }
+    
+    @Override
+    public FileStorageRecord updateFileVersion(Long id, String fileName, String description, String version, String updateNotes, String md5Hash, long fileSize) {
+        // 获取当前记录，如果描述为空，保留原有描述
+        if (description == null) {
+            FileStorageRecord existingRecord = getById(id);
+            if (existingRecord != null) {
+                description = existingRecord.getDescription();
+            }
+        }
+        
         ctx.update(FILE_STORAGE)
                 .set(FILE_STORAGE.FILE_NAME, fileName)
                 .set(FILE_STORAGE.FILE_SIZE, fileSize)
                 .set(FILE_STORAGE.MD5_HASH, md5Hash)
                 .set(FILE_STORAGE.VERSION, version)
                 .set(FILE_STORAGE.UPDATE_NOTES, updateNotes)
+                .set(FILE_STORAGE.DESCRIPTION, description)
                 .set(FILE_STORAGE.LAST_UPDATED, DateTime.now())
                 .where(FILE_STORAGE.ID.eq(id))
                 .execute();

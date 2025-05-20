@@ -35,6 +35,7 @@ import org.jooq.conf.Settings;
 import org.jooq.impl.DSL;
 import org.jooq.impl.DataSourceConnectionProvider;
 import org.jooq.impl.DefaultConfiguration;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -44,10 +45,7 @@ import org.springframework.core.Ordered;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.multipart.support.StandardServletMultipartResolver;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.*;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
@@ -74,6 +72,9 @@ import static de.rwth.idsg.steve.SteveConfiguration.CONFIG;
 @EnableScheduling
 @ComponentScan("de.rwth.idsg.steve")
 public class BeanConfiguration implements WebMvcConfigurer {
+    
+    @Autowired
+    private de.rwth.idsg.steve.web.interceptor.FileAccessInterceptor fileAccessInterceptor;
 
     private HikariDataSource dataSource;
     private ScheduledThreadPoolExecutor executor;
@@ -169,6 +170,14 @@ public class BeanConfiguration implements WebMvcConfigurer {
     @EventListener
     public void afterStart(ContextRefreshedEvent event) {
         DateTimeUtils.checkJavaAndMySQLOffsets(dslContext());
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        // 注册文件访问拦截器，只拦截文件管理相关的请求
+        registry.addInterceptor(fileAccessInterceptor)
+                .addPathPatterns("/manager/files/**")
+                .excludePathPatterns("/manager/file-password");
     }
 
     @PreDestroy

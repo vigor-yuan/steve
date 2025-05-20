@@ -60,6 +60,15 @@ public interface FileStorageRepository {
      * @return The file record or null if not found
      */
     FileStorageRecord getById(Long id);
+    
+    /**
+     * Get file record by original file name
+     *
+     * @param originalName The original file name
+     * @return The file record or null if not found
+     */
+    FileStorageRecord getByOriginalName(String originalName);
+
 
     /**
      * Delete a file record
@@ -94,6 +103,20 @@ public interface FileStorageRepository {
      * @return The updated file record
      */
     FileStorageRecord updateMaxDownloads(Long id, int maxDownloads);
+    
+    /**
+     * Update file version with description
+     *
+     * @param id The file ID
+     * @param fileName The new file name
+     * @param description The updated description
+     * @param version The new version
+     * @param updateNotes Update notes
+     * @param md5Hash MD5 hash of the file
+     * @param fileSize Size of the file
+     * @return The updated file record
+     */
+    FileStorageRecord updateFileVersion(Long id, String fileName, String description, String version, String updateNotes, String md5Hash, long fileSize);
     
     /**
      * Get total count of files

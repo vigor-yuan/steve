@@ -8,6 +8,46 @@
         var csrfHeader = '${_csrf.headerName}';
         var csrfToken = '${_csrf.token}';
         
+        // 文件大小验证 - 最大2MB (2097152 bytes)
+        var maxFileSize = 2097152;
+        
+        // 为所有文件上传输入框添加文件大小验证
+        $(document).on('change', 'input[type="file"]', function() {
+            var fileInput = this;
+            var form = $(this).closest('form');
+            var submitButton = form.find('input[type="submit"], button[type="submit"]');
+            var errorDiv = form.find('.file-size-error');
+            
+            // 如果没有错误提示div，创建一个
+            if (errorDiv.length === 0) {
+                errorDiv = $('<div class="file-size-error" style="color: red; display: none;">文件大小超过2MB，无法上传</div>');
+                $(this).after(errorDiv);
+            }
+            
+            if (fileInput.files && fileInput.files[0]) {
+                var fileSize = fileInput.files[0].size;
+                
+                if (fileSize > maxFileSize) {
+                    // 显示错误信息
+                    errorDiv.show();
+                    // 禁用提交按钮
+                    submitButton.prop('disabled', true);
+                    // 添加红色边框
+                    $(fileInput).css('border', '1px solid red');
+                    // 显示友好的文件大小
+                    var fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+                    errorDiv.text('文件大小(' + fileSizeMB + 'MB)超过限制(2MB)，无法上传');
+                } else {
+                    // 隐藏错误信息
+                    errorDiv.hide();
+                    // 启用提交按钮
+                    submitButton.prop('disabled', false);
+                    // 移除红色边框
+                    $(fileInput).css('border', '');
+                }
+            }
+        });
+        
         // 为所有AJAX请求添加CSRF令牌
         $.ajaxSetup({
             beforeSend: function(xhr) {
@@ -55,31 +95,7 @@
             });
         });
         
-        // Handle max downloads update
-        $(".update-max-downloads").on("click", function(e) {
-            e.preventDefault();
-            var fileId = $(this).data("id");
-            var currentMax = $(this).data("max");
-            var newMax = prompt("请输入最大下载次数 (0表示无限制):", currentMax);
-            
-            if (newMax !== null && !isNaN(newMax)) {
-                $.ajax({
-                    url: "${ctxPath}/manager/files/max-downloads/" + fileId,
-                    type: "POST",
-                    data: { maxDownloads: newMax },
-                    success: function(response) {
-                        if (response === "success") {
-                            location.reload();
-                        } else {
-                            alert("更新失败: " + response);
-                        }
-                    },
-                    error: function() {
-                        alert("更新失败");
-                    }
-                });
-            }
-        });
+        // 下载次数编辑功能现在通过模态对话框实现
         
         // Handle file deletion
         $(document).on("click", ".delete-file", function(e) {
@@ -112,14 +128,25 @@
         // Handle URL copying
         $(document).on("click", ".copy-url", function(e) {
             e.preventDefault();
-            var url = $(this).data("url");
+            var relativeUrl = $(this).data("url");
+            // 构建完整的URL包含域名
+            var fullUrl = window.location.origin + relativeUrl;
             var tempInput = document.createElement("input");
             document.body.appendChild(tempInput);
-            tempInput.value = url;
+            tempInput.value = fullUrl;
             tempInput.select();
             document.execCommand("copy");
             document.body.removeChild(tempInput);
-            alert("URL已复制到剪贴板: " + url);
+            
+            // 显示临时提示而不是弹窗
+            var button = $(this);
+            var originalText = button.html();
+            button.html('<span class="blueSubmit">已复制!</span>');
+            
+            // 2秒后恢复原始文本
+            setTimeout(function() {
+                button.html(originalText);
+            }, 2000);
         });
         
         // Handle version update
@@ -133,6 +160,42 @@
         // Close modal when clicking the close button
         $(document).on("click", ".close-modal", function() {
             $("#updateFileModal").hide();
+            $("#editMaxDownloadsModal").hide();
+        });
+        
+        // Handle max downloads editing
+        $(document).on("click", ".edit-max-downloads", function(e) {
+            e.preventDefault();
+            var fileId = $(this).data("id");
+            var currentMaxDownloads = $(this).data("current");
+            $("#editFileId").val(fileId);
+            $("#maxDownloadsInput").val(currentMaxDownloads);
+            $("#editMaxDownloadsModal").show();
+        });
+        
+        // Save max downloads
+        $(document).on("click", "#saveMaxDownloads", function() {
+            var fileId = $("#editFileId").val();
+            var maxDownloads = $("#maxDownloadsInput").val();
+            
+            $.ajax({
+                url: "${ctxPath}/manager/files/max-downloads/" + fileId,
+                type: "POST",
+                data: { maxDownloads: maxDownloads },
+                success: function(response) {
+                    if (response === "success") {
+                        $("#editMaxDownloadsModal").hide();
+                        // 刷新页面显示更新后的数据
+                        location.reload();
+                    } else {
+                        alert("更新失败: " + response);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    alert("更新失败: " + error);
+                }
+            });
         });
     });
 </script>
@@ -183,6 +246,8 @@
             </div>
         </c:if>
         
+
+        
         <div class="fileUploadContainer">
             <form:form action="${ctxPath}/manager/files/upload" method="POST" 
                       enctype="multipart/form-data" modelAttribute="fileForm">
@@ -209,7 +274,7 @@
                     <tr>
                         <td>最大下载次数:</td>
                         <td>
-                            <form:input path="maxDownloads" type="number" min="0" value="0" />
+                            <form:input path="maxDownloads" type="number" min="0" value="1000" />
                             <div><small>0 表示无限制</small></div>
                         </td>
                     </tr>
@@ -252,7 +317,16 @@
                 <c:forEach items="${files}" var="file">
                     <tr>
                         <td>${file.id}</td>
-                        <td>${file.originalName}</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${file.disabled || (file.maxDownloads > 0 && file.downloadCount >= file.maxDownloads)}">
+                                    <span title="文件已禁用或达到下载上限">${file.originalName}</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <a href="${ctxPath}/files/download/name/${file.originalName}" title="点击下载文件">${file.originalName}</a>
+                                </c:otherwise>
+                            </c:choose>
+                        </td>
                         <td>${not empty file.version ? file.version : '1.0'}</td>
                         <td>${file.description}</td>
                         <td>
@@ -273,10 +347,18 @@
                         <td>
                             <span class="download-info">
                                 ${file.downloadCount}
-                                <c:if test="${file.maxDownloads > 0}">
-                                    / ${file.maxDownloads}
-                                </c:if>
+                                <c:choose>
+                                    <c:when test="${file.maxDownloads > 0}">
+                                        / ${file.maxDownloads}
+                                    </c:when>
+                                    <c:otherwise>
+                                        / <span title="无限制下载次数">无限制</span>
+                                    </c:otherwise>
+                                </c:choose>
                             </span>
+                            <button class="edit-max-downloads" data-id="${file.id}" data-current="${file.maxDownloads}" title="编辑最大下载次数">
+                                <i class="fa fa-edit">调整</i>
+                            </button>
                         </td>
                         <td>${file.uploadBy}</td>
                         <td>${file.updateNotes}</td>
@@ -293,10 +375,10 @@
                         <td class="file-actions">
                             <c:choose>
                                 <c:when test="${file.disabled || (file.maxDownloads > 0 && file.downloadCount >= file.maxDownloads)}">
-                                    <span class="graySubmit" style="text-decoration: none; cursor: not-allowed;" title="文件已禁用或达到下载上限">下载</span>
+                                    <span class="graySubmit" style="text-decoration: none; cursor: not-allowed;" title="文件已禁用或达到下载上限">下载描述</span>
                                 </c:when>
                                 <c:otherwise>
-                                    <a href="${ctxPath}/manager/files/download/${file.id}" class="blueSubmit" style="text-decoration: none;">下载</a>
+                                    <a href="${ctxPath}/files/download-description/name/${file.originalName}" class="blueSubmit" style="text-decoration: none;">下载描述</a>
                                 </c:otherwise>
                             </c:choose>
                             <button class="toggle-disabled" data-id="${file.id}" data-disabled="${file.disabled}">
@@ -316,7 +398,7 @@
                                     </button>
                                 </c:when>
                                 <c:otherwise>
-                                    <button class="copy-url" data-id="${file.id}" data-url="${ctxPath}/manager/files/download/${file.id}">
+                                    <button class="copy-url" data-url="${ctxPath}/files/download/name/${file.originalName}">
                                         <span class="blueSubmit">复制URL</span>
                                     </button>
                                 </c:otherwise>
@@ -329,33 +411,61 @@
                     </tr>
                 </c:forEach>
             </tbody>
+            <!-- Pagination -->
+            <div class="pagination">
+                <c:if test="${totalPages > 1}">
+                    <c:if test="${currentPage > 1}">
+                        <a href="${ctxPath}/manager/files?page=1&size=${pageSize}">&laquo; 首页</a>
+                        <a href="${ctxPath}/manager/files?page=${currentPage - 1}&size=${pageSize}">&lsaquo; 上一页</a>
+                    </c:if>
+                    
+                    <c:forEach begin="${Math.max(1, currentPage - 2)}" end="${Math.min(totalPages, currentPage + 2)}" var="i">
+                        <c:choose>
+                            <c:when test="${i == currentPage}">
+                                <span class="current">${i}</span>
+                            </c:when>
+                            <c:otherwise>
+                                <a href="${ctxPath}/manager/files?page=${i}&size=${pageSize}">${i}</a>
+                            </c:otherwise>
+                        </c:choose>
+                    </c:forEach>
+                    
+                    <c:if test="${currentPage < totalPages}">
+                        <a href="${ctxPath}/manager/files?page=${currentPage + 1}&size=${pageSize}">下一页 &rsaquo;</a>
+                        <a href="${ctxPath}/manager/files?page=${totalPages}&size=${pageSize}">末页 &raquo;</a>
+                    </c:if>
+                </c:if>
+            </div>
         </table>
-        
-        <!-- Pagination -->
-        <div class="pagination">
-            <c:if test="${totalPages > 1}">
-                <c:if test="${currentPage > 1}">
-                    <a href="${ctxPath}/manager/files?page=1&size=${pageSize}">&laquo; 首页</a>
-                    <a href="${ctxPath}/manager/files?page=${currentPage - 1}&size=${pageSize}">&lsaquo; 上一页</a>
-                </c:if>
-                
-                <c:forEach begin="${Math.max(1, currentPage - 2)}" end="${Math.min(totalPages, currentPage + 2)}" var="i">
-                    <c:choose>
-                        <c:when test="${i == currentPage}">
-                            <span class="current">${i}</span>
-                        </c:when>
-                        <c:otherwise>
-                            <a href="${ctxPath}/manager/files?page=${i}&size=${pageSize}">${i}</a>
-                        </c:otherwise>
-                    </c:choose>
-                </c:forEach>
-                
-                <c:if test="${currentPage < totalPages}">
-                    <a href="${ctxPath}/manager/files?page=${currentPage + 1}&size=${pageSize}">下一页 &rsaquo;</a>
-                    <a href="${ctxPath}/manager/files?page=${totalPages}&size=${pageSize}">末页 &raquo;</a>
-                </c:if>
-            </c:if>
-        </div>
+    </div>
+</div>
+</div>
+</div>
+
+<!-- 编辑下载次数模态对话框 -->
+<div id="editMaxDownloadsModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 30%;">
+        <span class="close-modal" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+        <h2>编辑最大下载次数</h2>
+        <form id="editMaxDownloadsForm">
+            <input type="hidden" id="editFileId" name="id" value="">
+            <table class="userInput">
+                <tr>
+                    <td>最大下载次数:</td>
+                    <td>
+                        <input type="number" id="maxDownloadsInput" name="maxDownloads" min="0" value="1000" />
+                        <div><small>0 表示无限制</small></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button type="button" id="saveMaxDownloads" class="blueSubmit">保存</button>
+                        <button type="button" class="close-modal redSubmit">取消</button>
+                    </td>
+                </tr>
+            </table>
+        </form>
     </div>
 </div>
 
@@ -370,7 +480,14 @@
                 <tr>
                     <td>选择文件:</td>
                     <td>
-                        <input type="file" name="file" required />
+                        <input type="file" name="file" id="fileInput" required />
+                        <div><small>最大文件大小: 2MB</small></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>描述:</td>
+                    <td>
+                        <textarea name="description" rows="3" cols="50"></textarea>
                     </td>
                 </tr>
                 <tr>
@@ -444,5 +561,32 @@
         });
     });
 </script>
+
+<!-- 编辑下载次数模态对话框 -->
+<div id="editMaxDownloadsModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%;">
+        <span class="close-modal" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+        <h2>编辑最大下载次数</h2>
+        <form id="editMaxDownloadsForm" action="${ctxPath}/manager/files/max-downloads" method="POST">
+            <input type="hidden" id="editFileId" name="fileId" value="">
+            <table class="userInput">
+                <tr>
+                    <td>最大下载次数:</td>
+                    <td>
+                        <input type="number" id="maxDownloads" name="maxDownloads" min="0" value="0" />
+                        <p><small>设置为0表示无限制下载</small></p>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button type="submit" class="blueSubmit">保存</button>
+                        <button type="button" class="close-modal redSubmit">取消</button>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+</div>
 
 <%@ include file="00-footer.jsp" %>

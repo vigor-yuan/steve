@@ -47,6 +47,17 @@ public interface FileStorageService {
      * @throws IOException If file storage fails
      */
     FileStorageRecord storeFile(FileStorageForm form, String username) throws IOException;
+    
+    /**
+     * Store a file from form with overwrite option
+     *
+     * @param form The form containing file and description
+     * @param username Username of uploader
+     * @param overwrite Whether to overwrite existing file
+     * @return The stored file record
+     * @throws IOException If file storage fails
+     */
+    FileStorageRecord storeFile(FileStorageForm form, String username, boolean overwrite) throws IOException;
 
     /**
      * Load a file as a resource
@@ -56,6 +67,17 @@ public interface FileStorageService {
      * @throws IOException If file loading fails
      */
     Resource loadFileAsResource(Long id) throws IOException;
+    
+    /**
+     * Update file version
+     * 
+     * @param id The file ID
+     * @param file The new file
+     * @param description The updated description (optional)
+     * @param version The new version
+     * @param updateNotes Update notes
+     */
+    void updateFileVersion(Long id, MultipartFile file, String description, String version, String updateNotes);
 
     /**
      * Load a file as a resource
@@ -106,6 +128,22 @@ public interface FileStorageService {
      * @return The file record
      */
     FileStorageRecord getById(Long id);
+    
+    /**
+     * Get file record by original file name
+     *
+     * @param originalName The original file name
+     * @return The file record or null if not found
+     */
+    FileStorageRecord getByOriginalName(String originalName);
+    
+    /**
+     * Check if a file with the given original name exists
+     *
+     * @param originalName The original file name
+     * @return true if file exists
+     */
+    boolean fileExists(String originalName);
 
     /**
      * Delete a file

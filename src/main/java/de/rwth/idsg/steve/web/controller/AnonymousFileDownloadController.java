@@ -19,7 +19,6 @@
 package de.rwth.idsg.steve.web.controller;
 
 import de.rwth.idsg.steve.service.FileStorageService;
-import de.rwth.idsg.steve.web.dto.FileStorageForm;
 import de.rwth.idsg.steve.web.dto.FileStorageRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,21 +28,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -52,144 +41,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.security.Principal;
-import java.util.List;
-
-import de.rwth.idsg.steve.utils.FileDownloadLogger;
 
 /**
- * Controller for file management
- *
- * @author CASCADE AI Assistant
+ * 专门用于匿名文件下载的控制器
+ * 这个控制器不需要身份验证即可访问
  */
 @Slf4j
 @Controller
-@RequestMapping("/manager/files")
-public class FileManagementController {
+@RequestMapping("/files")
+public class AnonymousFileDownloadController {
 
-    private static final int DEFAULT_PAGE_SIZE = 10;
+    @Autowired
+    private FileStorageService fileStorageService;
 
-    @Autowired private FileStorageService fileStorageService;
-    @Autowired private FileDownloadLogger fileDownloadLogger;
-
-    @GetMapping
-    public String getFiles(Model model, 
-                          @RequestParam(value = "page", defaultValue = "1") int page,
-                          @RequestParam(value = "size", defaultValue = "10") int size) {
-        // Validate page and size parameters
-        if (page < 1) page = 1;
-        if (size < 1 || size > 100) size = DEFAULT_PAGE_SIZE;
-        
-        int offset = (page - 1) * size;
-        
-        List<FileStorageRecord> files = fileStorageService.getAll(offset, size);
-        int totalFiles = fileStorageService.getTotalCount();
-        int totalPages = (int) Math.ceil((double) totalFiles / size);
-        
-        model.addAttribute("files", files);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("pageSize", size);
-        model.addAttribute("fileForm", new FileStorageForm());
-        model.addAttribute("allowedFileTypes", fileStorageService.getAllowedFileTypes());
-        return "files";
-    }
-
-    @PostMapping("/upload")
-    public String uploadFile(@ModelAttribute("fileForm") FileStorageForm form,
-                             org.springframework.validation.BindingResult result,
-                             RedirectAttributes redirectAttributes,
-                             java.security.Principal principal) {
-        if (result.hasErrors()) {
-            return "redirect:/manager/files";
-        }
-        
-        try {
-            // 检查 principal 是否为 null，如果为 null 则使用默认用户名
-            String username = (principal != null) ? principal.getName() : "anonymous";
-            
-            // 检查文件是否已存在
-            String originalFilename = form.getFile().getOriginalFilename();
-            boolean fileExists = fileStorageService.fileExists(originalFilename);
-            
-            if (fileExists) {
-                // 文件已存在，提示用户使用更新按钮
-                FileStorageRecord existingFile = fileStorageService.getByOriginalName(originalFilename);
-                redirectAttributes.addFlashAttribute("error", "文件 '" + originalFilename + "' 已存在。请使用更新按钮上传新版本。");
-                return "redirect:/manager/files";
-            }
-            
-            // 存储文件
-            fileStorageService.storeFile(form, username);
-            redirectAttributes.addFlashAttribute("success", "文件上传成功");
-        } catch (Exception e) {
-            log.error("文件上传失败", e);
-            redirectAttributes.addFlashAttribute("error", "文件上传失败: " + e.getMessage());
-        }
-        
-        return "redirect:/manager/files";
-    }
-    
     /**
-     * 更新文件版本
+     * 通过文件名匿名下载文件
+     * 支持GET和HEAD请求
+     * GET请求返回完整文件内容
+     * HEAD请求只返回文件元数据，不返回文件内容
      */
-    @PostMapping("/update")
-    public String updateFile(@RequestParam("id") Long id,
-                           @RequestParam("file") MultipartFile file,
-                           @RequestParam(value = "description", required = false) String description,
-                           @RequestParam("version") String version,
-                           @RequestParam("updateNotes") String updateNotes,
-                           RedirectAttributes redirectAttributes,
-                           java.security.Principal principal) {
+    @RequestMapping(value = "/download/name/{fileName}", method = {RequestMethod.GET, RequestMethod.HEAD})
+    public ResponseEntity<Resource> downloadFileByName(@PathVariable String fileName, HttpServletRequest request) {
         try {
-            fileStorageService.updateFileVersion(id, file, description, version, updateNotes);
-            redirectAttributes.addFlashAttribute("success", "文件版本更新成功");
-        } catch (Exception e) {
-            log.error("文件版本更新失败", e);
-            redirectAttributes.addFlashAttribute("error", "文件版本更新失败: " + e.getMessage());
-        }
-        
-        return "redirect:/manager/files";
-    }
-    
-    /**
-     * 切换文件禁用状态
-     */
-    @PostMapping("/disable/{id}")
-    @ResponseBody
-    public String toggleFileStatus(@PathVariable Long id, @RequestParam boolean disabled) {
-        try {
-            fileStorageService.toggleFileStatus(id, disabled);
-            return "success";
-        } catch (Exception e) {
-            log.error("切换文件状态失败", e);
-            return "error: " + e.getMessage();
-        }
-    }
-    
-    /**
-     * 获取文件下载URL
-     */
-    @GetMapping("/url/{id}")
-    @ResponseBody
-    public String getDownloadUrl(@PathVariable Long id, HttpServletRequest request) {
-        try {
-            String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-            return baseUrl + request.getContextPath() + "/manager/files/download/" + id;
-        } catch (Exception e) {
-            log.error("获取下载URL失败", e);
-            return "error: " + e.getMessage();
-        }
-    }
-
-    
-    /**
-     * 通过文件名下载文件
-     */
-    @GetMapping({"download/name/{fileName}", "/download/name/{fileName}"})
-    public ResponseEntity<Resource> downloadFileByName(@PathVariable String fileName, Principal principal, HttpServletRequest request) {
-        try {
-            log.info("Attempting to download file with name: {}", fileName);
+            log.info("Anonymous download attempt for file with name: {}", fileName);
             
             // 获取文件记录
             FileStorageRecord record = fileStorageService.getByOriginalName(fileName);
@@ -242,7 +116,7 @@ public class FileManagementController {
                 // 添加文件删除钩子，在响应完成后删除临时文件
                 request.setAttribute("tempFilePath", tempFilePath.toString());
                 
-                log.info("Created temporary file copy for download: original={}, temp={}, size={}", 
+                log.info("Created temporary file copy for anonymous download: original={}, temp={}, size={}", 
                          filePath, tempFilePath, resource.contentLength());
             } catch (IOException e) {
                 log.error("Failed to create temporary file for download: {}", e.getMessage());
@@ -259,18 +133,9 @@ public class FileManagementController {
             // 更新下载计数
             fileStorageService.incrementDownloadCount(record.getId());
             
-            // 记录文件下载日志 - 处理匿名用户
+            // 记录匿名下载日志
             String remoteIp = request.getRemoteAddr();
-            String username = (principal != null) ? principal.getName() : "anonymous";
-            log.info("File download by user: {}, IP: {}, file: {}", username, remoteIp, fileName);
-            
-            // 如果是已登录用户，记录详细日志
-            if (principal != null) {
-                fileDownloadLogger.logDownload(record, principal, remoteIp);
-            } else {
-                // 匿名用户下载日志
-                log.info("Anonymous download: file={}, ip={}", record.getOriginalName(), remoteIp);
-            }
+            log.info("Anonymous download: file={}, ip={}", record.getOriginalName(), remoteIp);
             
             // 获取文件的原始名称
             String originalFilename = record.getOriginalName();
@@ -293,34 +158,16 @@ public class FileManagementController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-    
+
     /**
-     * 通过文件ID下载描述文件 - 已废弃，请使用文件名下载
+     * 通过文件名匿名下载描述文件
+     * 支持GET和HEAD请求
+     * GET请求返回完整描述文件内容
+     * HEAD请求只返回描述文件元数据，不返回文件内容
      */
-    @Deprecated
-    @GetMapping("/download-description/{id}")
-    public ResponseEntity<Resource> downloadFileDescription(@PathVariable Long id) throws IOException {
-        log.warn("请使用文件名下载描述功能替代ID下载描述功能");
-        
-        // 获取文件记录
-        FileStorageRecord record = fileStorageService.getById(id);
-        if (record == null) {
-            throw new IOException("File not found with id: " + id);
-        }
-        
-        // 重定向到文件名下载描述接口
-        String redirectUrl = "/manager/files/download-description/name/" + record.getOriginalName();
-        return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
-                .header(HttpHeaders.LOCATION, redirectUrl)
-                .build();
-    }
-    
-    /**
-     * 通过文件名下载描述文件
-     */
-    @GetMapping({"download-description/name/{fileName}", "/download-description/name/{fileName}"})
-    public ResponseEntity<Resource> downloadFileDescriptionByName(@PathVariable String fileName, Principal principal, HttpServletRequest request) {
-        log.info("Attempting to download description file for file with name: {}", fileName);
+    @RequestMapping(value = "/download-description/name/{fileName}", method = {RequestMethod.GET, RequestMethod.HEAD})
+    public ResponseEntity<Resource> downloadFileDescriptionByName(@PathVariable String fileName, HttpServletRequest request) {
+        log.info("Anonymous download attempt for description file with name: {}", fileName);
         
         // 获取文件记录
         FileStorageRecord record = fileStorageService.getByOriginalName(fileName);
@@ -370,7 +217,7 @@ public class FileManagementController {
                 // 添加文件删除钩子，在响应完成后删除临时文件
                 request.setAttribute("tempFilePath", tempFilePath.toString());
                 
-                log.info("Created temporary file copy for description download: temp={}, size={}", 
+                log.info("Created temporary file copy for anonymous description download: temp={}, size={}", 
                          tempFilePath, resource.contentLength());
             } catch (IOException e) {
                 log.error("Failed to create temporary file for description download: {}", e.getMessage());
@@ -379,10 +226,9 @@ public class FileManagementController {
                 resource = originalResource;
             }
             
-            // 记录描述文件下载日志 - 处理匿名用户
+            // 记录匿名描述文件下载日志
             String remoteIp = request.getRemoteAddr();
-            String username = (principal != null) ? principal.getName() : "anonymous";
-            log.info("Description file download by user: {}, IP: {}, file: {}", username, remoteIp, fileName);
+            log.info("Anonymous description file download: file={}, ip={}", fileName, remoteIp);
             
             String descriptionFileName = fileName + ".description.txt";
             
@@ -394,49 +240,5 @@ public class FileManagementController {
             log.error("Error loading description file for: {}, error: {}", fileName, ex.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-    }
-
-    @DeleteMapping("/{id}")
-    @ResponseBody
-    public String deleteFile(@PathVariable Long id) {
-        try {
-            fileStorageService.deleteFile(id);
-            return "success";
-        } catch (Exception e) {
-            log.error("文件删除失败", e);
-            return "error";
-        }
-    }
-    
-    /**
-     * 处理模拟的DELETE请求，用于支持不能直接发送DELETE请求的客户端
-     */
-    @PostMapping("/{id}")
-    @ResponseBody
-    public String deleteFilePost(@PathVariable Long id, @RequestParam(name = "_method", required = false) String method) {
-        if ("DELETE".equalsIgnoreCase(method)) {
-            return deleteFile(id);
-        }
-        return "error: Unsupported method";
-    }
-    
-    @PostMapping("/max-downloads/{id}")
-    @ResponseBody
-    public String updateMaxDownloads(@PathVariable Long id, @RequestParam int maxDownloads) {
-        try {
-            if (maxDownloads < 0) {
-                return "error: Max downloads cannot be negative";
-            }
-            fileStorageService.updateMaxDownloads(id, maxDownloads);
-            return "success";
-        } catch (Exception e) {
-            log.error("Error updating max downloads", e);
-            return "error";
-        }
-    }
-
-    @ExceptionHandler(IOException.class)
-    public ResponseEntity<String> handleIOException(IOException ex) {
-        return ResponseEntity.badRequest().body(ex.getMessage());
     }
 }

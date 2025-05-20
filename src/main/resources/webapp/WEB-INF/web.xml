@@ -20,6 +20,18 @@
         <filter-name>characterEncodingFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
+    
+    <!-- 下载临时文件清理过滤器 -->
+    <filter>
+        <filter-name>downloadTempFileCleanupFilter</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    </filter>
+    
+    <filter-mapping>
+        <filter-name>downloadTempFileCleanupFilter</filter-name>
+        <url-pattern>/manager/files/download/*</url-pattern>
+        <url-pattern>/manager/files/download-description/*</url-pattern>
+    </filter-mapping>
 
     <servlet>
         <servlet-name>spring-dispatcher</servlet-name>

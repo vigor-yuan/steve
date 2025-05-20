@@ -68,7 +68,21 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         final String prefix = "/manager/";
         http
+            // 先配置允许匿名访问的路径，再配置需要认证的路径
             .authorizeRequests()
+                // 明确允许匿名访问文件下载URL，包括原来的路径和新的匿名下载路径
+                .antMatchers("/manager/files/download/**").permitAll()
+                .antMatchers("/manager/files/download-description/**").permitAll()
+                .antMatchers("/ocpp/manager/files/download/**").permitAll()
+                .antMatchers("/ocpp/manager/files/download-description/**").permitAll()
+                // 新添加的匿名文件下载路径
+                .antMatchers("/files/download/**").permitAll()
+                .antMatchers("/files/download-description/**").permitAll()
+                .antMatchers("/ocpp/files/download/**").permitAll()
+                .antMatchers("/ocpp/files/download-description/**").permitAll()
+                // 允许访问登录页面
+                .antMatchers(prefix + "signin").permitAll()
+                // 其他管理页面需要认证
                 .antMatchers(prefix + "**").hasRole("ADMIN")
                 .and()
             .sessionManagement()

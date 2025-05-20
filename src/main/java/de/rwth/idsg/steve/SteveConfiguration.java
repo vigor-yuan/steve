@@ -62,6 +62,7 @@ public enum SteveConfiguration {
     private final String fileUploadDir;
     private final long fileUploadMaxSize;
     private final String fileUploadAllowedTypes;
+    private final String fileAccessPassword;
 
     SteveConfiguration() {
         PropertiesFileLoader p = new PropertiesFileLoader("main.properties");
@@ -106,10 +107,24 @@ public enum SteveConfiguration {
                    .build();
                    
         // File upload configuration
-        fileUploadDir = p.getOptionalString("file.upload.dir", "uploads");
-        fileUploadMaxSize = p.getOptionalLong("file.upload.max-size", 10485760L); // Default: 10MB
+        String configuredUploadDir = p.getOptionalString("file.upload.dir", "../uploads");
+        // 处理文件存储路径，支持绝对路径和相对路径
+        if (isAbsolutePath(configuredUploadDir)) {
+            // 如果是绝对路径，直接使用
+            fileUploadDir = configuredUploadDir;
+        } else {
+            // 如果是相对路径，则相对于应用程序执行目录的同级目录
+            String baseDir = System.getProperty("user.dir");
+            // 获取父目录（执行目录的同级目录）
+            String parentDir = new java.io.File(baseDir).getParent();
+            // 组合路径
+            fileUploadDir = new java.io.File(parentDir, configuredUploadDir).getAbsolutePath();
+        }
+        
+        fileUploadMaxSize = p.getOptionalLong("file.upload.max-size", 2097152L); // Default: 2MB
         fileUploadAllowedTypes = p.getOptionalString("file.upload.allowed-types", 
-                "pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png,gif");
+                "mbn,sig,bin,rar,zip");
+        fileAccessPassword = p.getOptionalString("file.access.password", "");
 
         validate();
     }
@@ -144,6 +159,29 @@ public enum SteveConfiguration {
         } else {
             return "/" + s;
         }
+    }
+    
+    /**
+     * 判断路径是否为绝对路径
+     * 
+     * @param path 要检查的路径
+     * @return 如果是绝对路径返回true，否则返回false
+     */
+    private boolean isAbsolutePath(String path) {
+        if (path == null) {
+            return false;
+        }
+        
+        // Windows系统绝对路径判断（如 C:\folder 或 C:/folder）
+        if (path.length() >= 3 && 
+            Character.isLetter(path.charAt(0)) && 
+            path.charAt(1) == ':' && 
+            (path.charAt(2) == '\\' || path.charAt(2) == '/')) {
+            return true;
+        }
+        
+        // Unix/Linux系统绝对路径判断（以/开头）
+        return path.startsWith("/");
     }
 
     private void validate() {

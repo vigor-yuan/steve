@@ -69,9 +69,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     public FileStorageServiceImpl(FileStorageRepository fileStorageRepository) {
         this.fileStorageRepository = fileStorageRepository;
         
-        // Get configuration from properties
+        // Get configuration from properties - 现在已经处理为绝对路径
         String uploadDir = SteveConfiguration.CONFIG.getFileUploadDir();
-        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        this.fileStorageLocation = Paths.get(uploadDir).normalize();
         
         this.allowedFileTypes = SteveConfiguration.CONFIG.getFileUploadAllowedTypes().split(",");
         
@@ -82,9 +82,12 @@ public class FileStorageServiceImpl implements FileStorageService {
         log.info("Max file size: {} bytes", maxFileSize);
         
         try {
+            // 确保目录存在
             Files.createDirectories(fileStorageLocation);
+            log.info("File storage directory created/verified at: {}", fileStorageLocation.toAbsolutePath());
         } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            log.error("Failed to create file storage directory: {}", ex.getMessage());
+            throw new RuntimeException("Could not create the directory where the uploaded files will be stored: " + fileStorageLocation.toAbsolutePath(), ex);
         }
     }
 
@@ -155,6 +158,22 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public FileStorageRecord storeFile(FileStorageForm form, String username) throws IOException {
+        // 默认不覆盖
+        return storeFile(form, username, false);
+    }
+    
+    @Override
+    public FileStorageRecord storeFile(FileStorageForm form, String username, boolean overwrite) throws IOException {
+        // 检查文件是否已存在
+        String originalFilename = StringUtils.cleanPath(form.getFile().getOriginalFilename());
+        FileStorageRecord existingRecord = getByOriginalName(originalFilename);
+        
+        if (existingRecord != null) {
+            // 文件已存在，提示用户使用更新按钮
+            throw new SteveException("文件 '" + originalFilename + "' 已存在。请使用更新按钮上传新版本。");
+        }
+        
+        // 存储新文件
         FileStorageRecord record = storeFile(form, form.getDescription(), username);
         
         // Update max downloads if specified
@@ -228,6 +247,12 @@ public class FileStorageServiceImpl implements FileStorageService {
     
     @Override
     public void updateFileVersion(Long id, MultipartFile file, String version, String updateNotes) {
+        // 调用新的带描述参数的方法，传入null作为描述
+        updateFileVersion(id, file, null, version, updateNotes);
+    }
+    
+    @Override
+    public void updateFileVersion(Long id, MultipartFile file, String description, String version, String updateNotes) {
         try {
             // 检查文件是否存在
             FileStorageRecord record = fileStorageRepository.getById(id);
@@ -252,8 +277,14 @@ public class FileStorageServiceImpl implements FileStorageService {
             // 计算MD5哈希值
             String md5Hash = calculateMD5(file.getInputStream());
             
+            // 如果描述为空，使用原有描述
+            String updatedDescription = description;
+            if (StringUtils.isEmpty(updatedDescription)) {
+                updatedDescription = record.getDescription();
+            }
+            
             // 更新数据库记录
-            fileStorageRepository.updateFileVersion(id, newFileName, version, updateNotes, md5Hash, file.getSize());
+            fileStorageRepository.updateFileVersion(id, newFileName, updatedDescription, version, updateNotes, md5Hash, file.getSize());
             
             // 删除旧文件
             if (!record.getFileName().equals(newFileName)) {
@@ -314,6 +345,16 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public FileStorageRecord getById(Long id) {
         return fileStorageRepository.getById(id);
+    }
+    
+    @Override
+    public FileStorageRecord getByOriginalName(String originalName) {
+        return fileStorageRepository.getByOriginalName(originalName);
+    }
+    
+    @Override
+    public boolean fileExists(String originalName) {
+        return fileStorageRepository.getByOriginalName(originalName) != null;
     }
 
     @Override

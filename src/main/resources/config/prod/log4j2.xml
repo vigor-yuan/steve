@@ -3,12 +3,13 @@
 
     <Properties>
         <Property name="logPattern">[%-5p] %d %c - %m%n</Property>
+        <Property name="baseDir">${sys:user.home}/logs</Property>
     </Properties>
 
     <Appenders>
         <RollingRandomAccessFile name="FILE"
-                                 fileName="${sys:user.home}/logs/steve.log"
-                                 filePattern="${sys:user.home}/logs/steve-%d{yyyy-MM-dd}-%i.log.gz"
+                                 fileName="${baseDir}/steve.log"
+                                 filePattern="${baseDir}/steve-%d{yyyy-MM-dd}-%i.log.gz"
                                  immediateFlush="false"
                                  append="true">
             <PatternLayout pattern="${logPattern}"/>
@@ -18,9 +19,34 @@
             </Policies>
             <DefaultRolloverStrategy max="20"/>
         </RollingRandomAccessFile>
+        
+        <!-- 文件下载日志文件输出 -->
+        <RollingFile name="FILE_DOWNLOAD_LOG" 
+                     fileName="${baseDir}/file-downloads.log"
+                     filePattern="${baseDir}/file-downloads-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="%m%n"/>
+            <Policies>
+                <!-- 每天滚动一次日志 -->
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <!-- 日志文件达到100MB时滚动 -->
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+            <!-- 保留最近7天的日志 -->
+            <DefaultRolloverStrategy max="7">
+                <Delete basePath="${baseDir}" maxDepth="1">
+                    <IfFileName glob="file-downloads-*.log.gz"/>
+                    <IfLastModified age="7d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
     </Appenders>
 
     <Loggers>
+        <!-- 文件下载日志记录器 -->
+        <Logger name="file-download-logger" level="INFO" additivity="false">
+            <AppenderRef ref="FILE_DOWNLOAD_LOG"/>
+        </Logger>
+        
         <!-- Disable the Jooq logo in logs -->
         <!-- https://github.com/jOOQ/jOOQ/issues/4019 -->
         <AsyncLogger name="org.jooq.Constants" level="WARN"/>
