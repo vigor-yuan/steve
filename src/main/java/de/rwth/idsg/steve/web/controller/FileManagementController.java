@@ -170,6 +170,22 @@ public class FileManagementController {
                 return ResponseEntity.notFound().build();
             }
             
+            // 检查文件是否已禁用
+            if (record.getDisabled()) {
+                log.warn("Attempted to download disabled file with ID: {}", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            
+            // 检查下载次数是否达到上限
+            if (record.getMaxDownloads() > 0 && record.getDownloadCount() >= record.getMaxDownloads()) {
+                log.warn("Download limit reached for file with ID: {}, max={}, current={}", 
+                         id, record.getMaxDownloads(), record.getDownloadCount());
+                
+                // 自动禁用文件
+                fileStorageService.toggleFileStatus(id, true);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            
             log.info("Found file record: fileName={}, originalName={}, filePath={}", 
                      record.getFileName(), record.getOriginalName(), record.getFilePath());
             

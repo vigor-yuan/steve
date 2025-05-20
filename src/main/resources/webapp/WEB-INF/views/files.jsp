@@ -291,7 +291,14 @@
                             </c:choose>
                         </td>
                         <td class="file-actions">
-                            <a href="${ctxPath}/manager/files/download/${file.id}" class="blueSubmit" style="text-decoration: none;">下载</a>
+                            <c:choose>
+                                <c:when test="${file.disabled || (file.maxDownloads > 0 && file.downloadCount >= file.maxDownloads)}">
+                                    <span class="graySubmit" style="text-decoration: none; cursor: not-allowed;" title="文件已禁用或达到下载上限">下载</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <a href="${ctxPath}/manager/files/download/${file.id}" class="blueSubmit" style="text-decoration: none;">下载</a>
+                                </c:otherwise>
+                            </c:choose>
                             <button class="toggle-disabled" data-id="${file.id}" data-disabled="${file.disabled}">
                                 <c:choose>
                                     <c:when test="${file.disabled}">
@@ -302,9 +309,18 @@
                                     </c:otherwise>
                                 </c:choose>
                             </button>
-                            <button class="copy-url" data-id="${file.id}" data-url="${ctxPath}/manager/files/download/${file.id}">
-                                <span class="blueSubmit">复制URL</span>
-                            </button>
+                            <c:choose>
+                                <c:when test="${file.disabled || (file.maxDownloads > 0 && file.downloadCount >= file.maxDownloads)}">
+                                    <button class="disabled-button" disabled title="文件已禁用或达到下载上限">
+                                        <span class="graySubmit">复制URL</span>
+                                    </button>
+                                </c:when>
+                                <c:otherwise>
+                                    <button class="copy-url" data-id="${file.id}" data-url="${ctxPath}/manager/files/download/${file.id}">
+                                        <span class="blueSubmit">复制URL</span>
+                                    </button>
+                                </c:otherwise>
+                            </c:choose>
                             <button class="delete-file redSubmit" data-id="${file.id}">删除</button>
                             <button class="update-version" data-id="${file.id}">
                                 <span class="blueSubmit">更新</span>
