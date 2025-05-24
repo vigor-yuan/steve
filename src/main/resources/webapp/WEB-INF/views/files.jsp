@@ -230,6 +230,27 @@
         font-size: 0.9em;
         color: #666;
     }
+    
+    .update-notes-container {
+        max-height: 100px; /* 约5行文本的高度 */
+        width: 25em; /* 固定宽度为25个字符 */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 5; /* 限制最多显示5行 */
+        line-clamp: 5; /* 标准属性，提高兼容性 */
+        -webkit-box-orient: vertical;
+        line-height: 1.3;
+        cursor: help; /* 鼠标悬停时显示帮助图标 */
+        word-break: break-all; /* 允许在任意字符间断行 */
+        text-align: center; /* 文本居中展示 */
+        margin: 0 auto; /* 居中容器 */
+    }
+    
+    /* 描述列的样式 */
+    .file-description {
+        text-align: center; /* 文本居中展示 */
+    }
 </style>
 <div class="content">
     <div>
@@ -328,7 +349,7 @@
                             </c:choose>
                         </td>
                         <td>${not empty file.version ? file.version : '1.0'}</td>
-                        <td>${file.description}</td>
+                        <td class="file-description">${file.description}</td>
                         <td>
                             <c:choose>
                                 <c:when test="${file.fileSize < 1024}">
@@ -361,7 +382,7 @@
                             </button>
                         </td>
                         <td>${file.uploadBy}</td>
-                        <td>${file.updateNotes}</td>
+                        <td><div class="update-notes-container">${file.updateNotes}</div></td>
                         <td>
                             <c:choose>
                                 <c:when test="${file.disabled}">

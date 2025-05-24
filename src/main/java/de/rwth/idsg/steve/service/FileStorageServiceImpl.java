@@ -406,14 +406,12 @@ public class FileStorageServiceImpl implements FileStorageService {
         Path descFilePath = getDescriptionFilePath(record);
         
         try (BufferedWriter writer = Files.newBufferedWriter(descFilePath, StandardCharsets.UTF_8)) {
-            // Write file information
-            writer.write("File Information\n");
-            writer.write("===============\n\n");
+            // 写入文件信息部分
+            writer.write("======== File Information ========\n");
             writer.write("Filename: " + record.getOriginalName() + "\n");
-            writer.write("Size: " + formatFileSize(record.getFileSize()) + "\n");
-            writer.write("Content Type: " + record.getContentType() + "\n");
-            writer.write("Upload Time: " + formatDateTime(record.getUploadTime()) + "\n");
-            writer.write("Uploaded By: " + record.getUploadBy() + "\n");
+            writer.write("Version: " + (record.getVersion() != null ? record.getVersion() : "v1.0") + "\n");
+            writer.write("Size: " + record.getFileSize() + " Byte\n");
+            writer.write("Uploaded Time: " + formatDateTime(record.getUploadTime()) + "\n");
             writer.write("MD5 Hash: " + record.getMd5Hash() + "\n");
             
             if (record.getMaxDownloads() > 0) {
@@ -422,14 +420,12 @@ public class FileStorageServiceImpl implements FileStorageService {
                 writer.write("Download Limit: Unlimited\n");
             }
             
-            writer.write("\nDescription\n");
-            writer.write("===========\n\n");
+            writer.write("\n======== Description ========\n");
             writer.write(record.getDescription() != null ? record.getDescription() : "No description provided.");
             
-            // Add update content if provided
+            // 添加更新信息（如果有）
             if (updateContent != null && !updateContent.isEmpty()) {
-                writer.write("\n\nUpdate Information\n");
-                writer.write("=================\n\n");
+                writer.write("\n\n======== Update Information ========\n");
                 writer.write(updateContent);
             }
         }

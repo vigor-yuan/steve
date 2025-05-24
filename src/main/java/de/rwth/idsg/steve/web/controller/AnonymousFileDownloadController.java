@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -130,8 +131,11 @@ public class AnonymousFileDownloadController {
                 }
             }
             
-            // 更新下载计数
-            fileStorageService.incrementDownloadCount(record.getId());
+            // 只有在实际下载文件时才增加下载计数
+            // 排除预加载、HEAD请求和Range请求
+            if ("GET".equalsIgnoreCase(request.getMethod()) && request.getHeader("Range") == null) {
+                fileStorageService.incrementDownloadCount(record.getId());
+            }
             
             // 记录匿名下载日志
             String remoteIp = request.getRemoteAddr();
