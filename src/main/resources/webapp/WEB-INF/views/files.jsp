@@ -328,7 +328,6 @@
                     <th data-sort="string">上传时间</th>
                     <th data-sort="string">最后更新</th>
                     <th data-sort="int">下载次数</th>
-                    <th data-sort="string">上传者</th>
                     <th data-sort="string">更新说明</th>
                     <th data-sort="string">状态</th>
                     <th>操作</th>
@@ -381,7 +380,6 @@
                                 <i class="fa fa-edit">调整</i>
                             </button>
                         </td>
-                        <td>${file.uploadBy}</td>
                         <td><div class="update-notes-container">${file.updateNotes}</div></td>
                         <td>
                             <c:choose>
@@ -432,32 +430,33 @@
                     </tr>
                 </c:forEach>
             </tbody>
-            <!-- Pagination -->
-            <div class="pagination">
-                <c:if test="${totalPages > 1}">
-                    <c:if test="${currentPage > 1}">
-                        <a href="${ctxPath}/manager/files?page=1&size=${pageSize}">&laquo; 首页</a>
-                        <a href="${ctxPath}/manager/files?page=${currentPage - 1}&size=${pageSize}">&lsaquo; 上一页</a>
-                    </c:if>
-                    
-                    <c:forEach begin="${Math.max(1, currentPage - 2)}" end="${Math.min(totalPages, currentPage + 2)}" var="i">
-                        <c:choose>
-                            <c:when test="${i == currentPage}">
-                                <span class="current">${i}</span>
-                            </c:when>
-                            <c:otherwise>
-                                <a href="${ctxPath}/manager/files?page=${i}&size=${pageSize}">${i}</a>
-                            </c:otherwise>
-                        </c:choose>
-                    </c:forEach>
-                    
-                    <c:if test="${currentPage < totalPages}">
-                        <a href="${ctxPath}/manager/files?page=${currentPage + 1}&size=${pageSize}">下一页 &rsaquo;</a>
-                        <a href="${ctxPath}/manager/files?page=${totalPages}&size=${pageSize}">末页 &raquo;</a>
-                    </c:if>
-                </c:if>
-            </div>
         </table>
+        
+        <!-- Pagination -->
+        <div class="pagination">
+            <c:if test="${totalPages > 1}">
+                <c:if test="${currentPage > 1}">
+                    <a href="${ctxPath}/manager/files?page=1&size=${pageSize}">&laquo; 首页</a>
+                    <a href="${ctxPath}/manager/files?page=${currentPage - 1}&size=${pageSize}">&lsaquo; 上一页</a>
+                </c:if>
+                
+                <c:forEach begin="${Math.max(1, currentPage - 2)}" end="${Math.min(totalPages.intValue(), currentPage + 2)}" var="i">
+                    <c:choose>
+                        <c:when test="${i == currentPage}">
+                            <span class="current">${i}</span>
+                        </c:when>
+                        <c:otherwise>
+                            <a href="${ctxPath}/manager/files?page=${i}&size=${pageSize}">${i}</a>
+                        </c:otherwise>
+                    </c:choose>
+                </c:forEach>
+                
+                <c:if test="${currentPage < totalPages}">
+                    <a href="${ctxPath}/manager/files?page=${currentPage + 1}&size=${pageSize}">下一页 &rsaquo;</a>
+                    <a href="${ctxPath}/manager/files?page=${totalPages}&size=${pageSize}">末页 &raquo;</a>
+                </c:if>
+            </c:if>
+        </div>
     </div>
 </div>
 </div>
